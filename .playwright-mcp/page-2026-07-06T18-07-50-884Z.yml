@@ -1,0 +1,82 @@
+- generic [ref=e1]:
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e6]:
+        - button [ref=e7] [cursor=pointer]
+        - heading "Sistema de Gestión de Alquileres" [level=4] [ref=e9]
+        - generic [ref=e10]:
+          - img "Cambios sin guardar" [ref=e178]
+          - button "Abrir DB" [ref=e11] [cursor=pointer]:
+            - generic [ref=e12]:
+              - img [ref=e14]
+              - generic [ref=e19]: Abrir DB
+          - button "Guardar DB" [ref=e20] [cursor=pointer]:
+            - generic [ref=e21]:
+              - img [ref=e23]
+              - generic [ref=e28]: Guardar DB
+    - navigation [ref=e29]:
+      - paragraph [ref=e30]: Menú Principal
+      - button "Inicio" [ref=e31] [cursor=pointer]:
+        - generic [ref=e32]:
+          - img [ref=e34]
+          - generic [ref=e38]: Inicio
+      - button "Locales" [ref=e39] [cursor=pointer]:
+        - generic [ref=e40]:
+          - img [ref=e42]
+          - generic [ref=e44]: Locales
+      - button "Inquilinos" [ref=e45] [cursor=pointer]:
+        - generic [ref=e46]:
+          - img [ref=e48]
+          - generic [ref=e51]: Inquilinos
+      - button "Pagos" [ref=e52] [cursor=pointer]:
+        - generic [ref=e53]:
+          - img [ref=e55]
+          - generic [ref=e57]: Pagos
+      - button "Cargos" [ref=e58] [cursor=pointer]:
+        - generic [ref=e59]:
+          - img [ref=e61]
+          - generic [ref=e64]: Cargos
+      - button "Egresos" [ref=e65] [cursor=pointer]:
+        - generic [ref=e66]:
+          - img [ref=e68]
+          - generic [ref=e71]: Egresos
+      - button "Reportes" [ref=e72] [cursor=pointer]:
+        - generic [ref=e73]:
+          - img [ref=e75]
+          - generic [ref=e78]: Reportes
+    - main [ref=e79]:
+      - generic [ref=e107]:
+        - generic [ref=e108]:
+          - paragraph [ref=e109]: Gestión de Locales
+          - button "Nuevo Local" [active] [ref=e110] [cursor=pointer]:
+            - generic [ref=e111]:
+              - img [ref=e113]
+              - generic [ref=e114]: Nuevo Local
+        - generic [ref=e115]:
+          - paragraph [ref=e116]: Lista de Locales
+          - table [ref=e117]:
+            - rowgroup [ref=e118]:
+              - row "ID Nombre Estado Monto Alquiler Acciones" [ref=e119]:
+                - columnheader "ID" [ref=e120]
+                - columnheader "Nombre" [ref=e121]
+                - columnheader "Estado" [ref=e122]
+                - columnheader "Monto Alquiler" [ref=e123]
+                - columnheader "Acciones" [ref=e124]
+            - rowgroup [ref=e180]:
+              - row "TEST001 Local de Prueba vacante $500.00" [ref=e181]:
+                - cell "TEST001" [ref=e182]
+                - cell "Local de Prueba" [ref=e183]
+                - cell "vacante" [ref=e184]
+                - cell "$500.00" [ref=e185]
+                - cell [ref=e186]:
+                  - generic [ref=e187]:
+                    - button [ref=e188] [cursor=pointer]:
+                      - img [ref=e190]
+                    - button [ref=e193] [cursor=pointer]:
+                      - img [ref=e195]
+  - alert [ref=e198]:
+    - generic [ref=e199]:
+      - generic [ref=e200]: Local creado
+      - generic [ref=e201]: El local Local de Prueba ha sido creado.
+    - button [ref=e202] [cursor=pointer]:
+      - img [ref=e203]

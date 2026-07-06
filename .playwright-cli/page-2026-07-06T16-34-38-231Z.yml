@@ -1,0 +1,112 @@
+- generic [ref=e1]:
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e6]:
+        - button [ref=e7] [cursor=pointer]
+        - heading "Sistema de Gestión de Alquileres" [level=4] [ref=e9]
+        - generic [ref=e10]:
+          - button "Abrir DB" [ref=e11] [cursor=pointer]:
+            - generic [ref=e12]:
+              - img [ref=e14]
+              - generic [ref=e19]: Abrir DB
+          - button "Guardar DB" [disabled] [ref=e20]:
+            - generic [ref=e21]:
+              - img [ref=e23]
+              - generic [ref=e28]: Guardar DB
+    - navigation [ref=e29]:
+      - paragraph [ref=e30]: Menú Principal
+      - button "Inicio" [ref=e31] [cursor=pointer]:
+        - generic [ref=e32]:
+          - img [ref=e34]
+          - generic [ref=e38]: Inicio
+      - button "Locales" [ref=e39] [cursor=pointer]:
+        - generic [ref=e40]:
+          - img [ref=e42]
+          - generic [ref=e44]: Locales
+      - button "Inquilinos" [ref=e45] [cursor=pointer]:
+        - generic [ref=e46]:
+          - img [ref=e48]
+          - generic [ref=e51]: Inquilinos
+      - button "Pagos" [ref=e52] [cursor=pointer]:
+        - generic [ref=e53]:
+          - img [ref=e55]
+          - generic [ref=e57]: Pagos
+      - button "Cargos" [ref=e58] [cursor=pointer]:
+        - generic [ref=e59]:
+          - img [ref=e61]
+          - generic [ref=e64]: Cargos
+      - button "Egresos" [ref=e65] [cursor=pointer]:
+        - generic [ref=e66]:
+          - img [ref=e68]
+          - generic [ref=e71]: Egresos
+      - button "Reportes" [ref=e72] [cursor=pointer]:
+        - generic [ref=e73]:
+          - img [ref=e75]
+          - generic [ref=e78]: Reportes
+    - main [ref=e79]:
+      - generic [ref=e91]:
+        - generic [ref=e92]:
+          - paragraph [ref=e93]: Gestión de Locales
+          - button "Nuevo Local" [ref=e94] [cursor=pointer]:
+            - generic [ref=e95]:
+              - img [ref=e97]
+              - generic [ref=e98]: Nuevo Local
+        - generic [ref=e99]:
+          - paragraph [ref=e100]: Lista de Locales
+          - table [ref=e101]:
+            - rowgroup [ref=e102]:
+              - row "ID Nombre Estado Monto Alquiler Acciones" [ref=e103]:
+                - columnheader "ID" [ref=e104]
+                - columnheader "Nombre" [ref=e105]
+                - columnheader "Estado" [ref=e106]
+                - columnheader "Monto Alquiler" [ref=e107]
+                - columnheader "Acciones" [ref=e108]
+            - rowgroup
+  - dialog "Crear Nuevo Local" [ref=e110]:
+    - banner [ref=e111]:
+      - heading "Crear Nuevo Local" [level=2] [ref=e112]
+      - button [active] [ref=e113] [cursor=pointer]:
+        - img [ref=e114]
+    - generic [ref=e118]:
+      - generic [ref=e119]:
+        - generic [ref=e120]: ID del Local
+        - textbox "ID del Local" [ref=e122]:
+          - /placeholder: ID único del local
+      - generic [ref=e123]:
+        - generic [ref=e124]: Nombre
+        - textbox "Nombre" [ref=e126]:
+          - /placeholder: Nombre del local
+      - generic [ref=e127]:
+        - generic [ref=e128]: Dirección
+        - textbox "Dirección" [ref=e130]:
+          - /placeholder: Dirección del local
+      - generic [ref=e131]:
+        - generic [ref=e132]: Estado
+        - generic [ref=e133]:
+          - combobox "Estado" [ref=e134] [cursor=pointer]: Vacante
+          - generic:
+            - img
+      - generic [ref=e135]:
+        - generic [ref=e136]: Monto de Alquiler (USD)
+        - generic [ref=e137]:
+          - textbox "Monto de Alquiler (USD)" [ref=e138]:
+            - /placeholder: Monto de alquiler
+            - text: "0"
+          - generic [ref=e140]:
+            - button [ref=e141] [cursor=pointer]:
+              - img [ref=e142]
+            - button [ref=e144] [cursor=pointer]:
+              - img [ref=e145]
+      - generic [ref=e147]:
+        - generic [ref=e148]: Monto de Condominio (USD) - Opcional
+        - textbox "Monto de Condominio (USD) - Opcional" [ref=e150]:
+          - /placeholder: Monto de condominio
+      - generic [ref=e151]:
+        - generic [ref=e152]: Monto de Luz (USD) - Opcional
+        - textbox "Monto de Luz (USD) - Opcional" [ref=e154]:
+          - /placeholder: Monto de luz
+      - generic [ref=e155]:
+        - button "Cancelar" [ref=e156] [cursor=pointer]:
+          - generic [ref=e158]: Cancelar
+        - button "Crear" [ref=e159] [cursor=pointer]:
+          - generic [ref=e161]: Crear

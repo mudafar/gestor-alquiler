@@ -1,0 +1,70 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e6]:
+        - button [ref=e7] [cursor=pointer]
+        - heading "Sistema de Gestión de Alquileres" [level=4] [ref=e9]
+        - generic [ref=e10]:
+          - button "Abrir DB" [ref=e11] [cursor=pointer]:
+            - generic [ref=e12]:
+              - img [ref=e14]
+              - generic [ref=e19]: Abrir DB
+          - button "Guardar DB" [disabled] [ref=e20]:
+            - generic [ref=e21]:
+              - img [ref=e23]
+              - generic [ref=e28]: Guardar DB
+    - navigation [ref=e29]:
+      - paragraph [ref=e30]: Menú Principal
+      - button "Inicio" [ref=e31] [cursor=pointer]:
+        - generic [ref=e32]:
+          - img [ref=e34]
+          - generic [ref=e38]: Inicio
+      - button "Locales" [ref=e39] [cursor=pointer]:
+        - generic [ref=e40]:
+          - img [ref=e42]
+          - generic [ref=e44]: Locales
+      - button "Inquilinos" [ref=e45] [cursor=pointer]:
+        - generic [ref=e46]:
+          - img [ref=e48]
+          - generic [ref=e51]: Inquilinos
+      - button "Pagos" [ref=e52] [cursor=pointer]:
+        - generic [ref=e53]:
+          - img [ref=e55]
+          - generic [ref=e57]: Pagos
+      - button "Cargos" [ref=e58] [cursor=pointer]:
+        - generic [ref=e59]:
+          - img [ref=e61]
+          - generic [ref=e64]: Cargos
+      - button "Egresos" [ref=e65] [cursor=pointer]:
+        - generic [ref=e66]:
+          - img [ref=e68]
+          - generic [ref=e71]: Egresos
+      - button "Reportes" [ref=e72] [cursor=pointer]:
+        - generic [ref=e73]:
+          - img [ref=e75]
+          - generic [ref=e78]: Reportes
+    - main [ref=e79]:
+      - generic [ref=e80]:
+        - paragraph [ref=e81]: Bienvenido
+        - paragraph [ref=e82]: Resumen del sistema
+        - paragraph [ref=e83]: "Este sistema permite gestionar alquileres de locales comerciales, incluyendo:"
+        - list [ref=e84]:
+          - listitem [ref=e85]: Gestión de locales (creación, edición, desactivación)
+          - listitem [ref=e86]: Asignación de inquilinos
+          - listitem [ref=e87]: Generación de cargos mensuales
+          - listitem [ref=e88]: Registro de pagos
+          - listitem [ref=e89]: Registro de egresos
+          - listitem [ref=e90]: Generación de reportes financieros
+  - generic [ref=e92]:
+    - alert [ref=e93]:
+      - generic [ref=e94]:
+        - generic [ref=e95]: Base de datos lista
+        - generic [ref=e96]: La base de datos se ha inicializado correctamente.
+      - button [ref=e97] [cursor=pointer]:
+        - img [ref=e98]
+    - alert [ref=e100]:
+      - generic [ref=e101]:
+        - generic [ref=e102]: Base de datos lista
+        - generic [ref=e103]: La base de datos se ha inicializado correctamente.
+      - button [ref=e104] [cursor=pointer]:
+        - img [ref=e105]
