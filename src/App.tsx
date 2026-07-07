@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { AppShell, Burger, Group, Text, Button, Modal, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconDatabaseExport, IconDatabaseImport, IconTrash, IconHome, IconBuilding, IconUser, IconReceipt, IconFileInvoice, IconChartPie } from '@tabler/icons-react';
+import { IconDatabaseExport, IconDatabaseImport, IconTrash, IconHome, IconBuilding, IconUser, IconReceipt, IconFileDescription, IconFileInvoice, IconChartPie } from '@tabler/icons-react';
 import { useAppStore } from './store/store';
 import { notifications } from '@mantine/notifications';
 import { LocalesModule } from './modules/locales/LocalesModule';
 import { InquilinosModule } from './modules/inquilinos/InquilinosModule';
 import { EgresosModule } from './modules/egresos/EgresosModule';
 import { PagosModule } from './modules/pagos/PagosModule';
+import { ContratosModule } from './modules/contratos/ContratosModule';
 import { CargosModule } from './modules/cargos/CargosModule';
 import { ReportesModule } from './modules/reportes/ReportesModule';
 
@@ -155,6 +156,15 @@ function App() {
           Inquilinos
         </Button>
         <Button 
+          variant={activeTab === 'contratos' ? 'filled' : 'subtle'} 
+          leftSection={<IconFileDescription size={18} />}
+          fullWidth
+          onClick={() => setActiveTab('contratos')}
+          mb="sm"
+        >
+          Contratos
+        </Button>
+        <Button 
           variant={activeTab === 'pagos' ? 'filled' : 'subtle'} 
           leftSection={<IconReceipt size={18} />}
           fullWidth
@@ -211,6 +221,7 @@ function App() {
 
         {activeTab === 'locales' && <LocalesModule />}
         {activeTab === 'inquilinos' && <InquilinosModule />}
+        {activeTab === 'contratos' && <ContratosModule />}
         {activeTab === 'pagos' && <PagosModule />}
         {activeTab === 'cargos' && <CargosModule />}
         {activeTab === 'egresos' && <EgresosModule />}

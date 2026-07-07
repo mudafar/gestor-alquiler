@@ -1,101 +1,117 @@
-import { useState } from 'react';
-import { 
-  Button, 
-  Card, 
-  Group, 
-  Text, 
-  Select
-} from '@mantine/core';
+import { useState, useMemo } from 'react';
+import { Card, Group, Text, Select, Table, Badge } from '@mantine/core';
 import { useAppStore } from '../../store/store';
-import { notifications } from '@mantine/notifications';
+
+const meses = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
+
+const estadoColor: Record<string, string> = {
+  al_dia: 'green',
+  atrasado: 'red',
+  adelantado: 'blue',
+};
+
+const estadoLabel: Record<string, string> = {
+  al_dia: 'Al día',
+  atrasado: 'Atrasado',
+  adelantado: 'Adelantado',
+};
 
 export function CargosModule() {
-  const { locales, generarCargoMensual, generarCargosParaMes } = useAppStore();
-  const [selectedAnio, setSelectedAnio] = useState<number>(new Date().getFullYear());
-  const [selectedMes, setSelectedMes] = useState<number>(new Date().getMonth() + 1);
-  const [selectedLocal, setSelectedLocal] = useState<string>('');
+  const { contratos, locales, inquilinos, cargosMensuales } = useAppStore();
+  const [selectedContratoId, setSelectedContratoId] = useState<string>('');
 
-  const handleGenerateSingle = () => {
-    if (selectedLocal) {
-      generarCargoMensual(selectedLocal, selectedAnio, selectedMes);
-      notifications.show({
-        title: 'Cargo generado',
-        message: `Se ha generado el cargo para ${selectedLocal} (${selectedAnio}-${selectedMes}).`,
-        color: 'green',
-      });
-    }
-  };
+  const contratoOptions = useMemo(
+    () =>
+      contratos.map((c) => {
+        const local = locales.find((l) => l.id === c.local_id);
+        const inquilino = inquilinos.find((i) => i.id === c.inquilino_id);
+        return {
+          value: c.id.toString(),
+          label: `${local?.nombre ?? c.local_id} – ${inquilino?.nombre ?? `#${c.inquilino_id}`} (${c.fecha_inicio} a ${c.fecha_fin})`,
+        };
+      }),
+    [contratos, locales, inquilinos]
+  );
 
-  const handleGenerateAll = () => {
-    const nuevosCargos = generarCargosParaMes(selectedAnio, selectedMes);
-    notifications.show({
-      title: 'Cargos generados',
-      message: `Se generaron ${nuevosCargos} cargos mensuales para ${selectedAnio}-${selectedMes}.`,
-      color: 'green',
-    });
-  };
+  const cargos = useMemo(
+    () => cargosMensuales.filter((c) => c.contrato_id.toString() === selectedContratoId),
+    [cargosMensuales, selectedContratoId]
+  );
+
+  const selectedContrato = contratos.find((c) => c.id.toString() === selectedContratoId);
 
   return (
     <div>
       <Group justify="space-between" mb="md">
-        <Text size="xl" fw={700}>Gestión de Cargos Mensuales</Text>
+        <Text size="xl" fw={700}>
+          Cargos Mensuales
+        </Text>
       </Group>
 
       <Card shadow="sm" padding="lg" radius="md" withBorder mb="md">
-        <Text size="lg" fw={700} mb="md">Generar Cargos</Text>
-        <Group grow>
-          <Select
-            label="Año"
-            placeholder="Seleccionar año"
-            data={Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => ({
-              value: y.toString(),
-              label: y.toString()
-            }))}
-            value={selectedAnio.toString()}
-            onChange={(value) => setSelectedAnio(parseInt(value || '0'))}
-          />
-          
-          <Select
-            label="Mes"
-            placeholder="Seleccionar mes"
-            data={[
-              { value: '1', label: 'Enero' },
-              { value: '2', label: 'Febrero' },
-              { value: '3', label: 'Marzo' },
-              { value: '4', label: 'Abril' },
-              { value: '5', label: 'Mayo' },
-              { value: '6', label: 'Junio' },
-              { value: '7', label: 'Julio' },
-              { value: '8', label: 'Agosto' },
-              { value: '9', label: 'Septiembre' },
-              { value: '10', label: 'Octubre' },
-              { value: '11', label: 'Noviembre' },
-              { value: '12', label: 'Diciembre' },
-            ]}
-            value={selectedMes.toString()}
-            onChange={(value) => setSelectedMes(parseInt(value || '0'))}
-          />
-          
-          <Select
-            label="Local (Opcional)"
-            placeholder="Seleccionar local"
-            data={locales.filter(l => l.estado === 'ocupado').map(l => ({
-              value: l.id,
-              label: `${l.id} - ${l.nombre}`
-            }))}
-            value={selectedLocal}
-            onChange={(value) => setSelectedLocal(value || '')}
-          />
-        </Group>
-        
-        <Group mt="md">
-          <Button onClick={handleGenerateSingle} disabled={!selectedLocal}>
-            Generar Cargo para Local Seleccionado
-          </Button>
-          <Button onClick={handleGenerateAll} variant="outline">
-            Generar Cargos para Todos los Locales
-          </Button>
-        </Group>
+        <Select
+          label="Seleccionar Contrato"
+          placeholder="Selecciona un contrato"
+          data={contratoOptions}
+          value={selectedContratoId || null}
+          onChange={(v) => setSelectedContratoId(v || '')}
+          searchable
+          mb="md"
+        />
+
+        {selectedContrato && (
+          <Text size="sm" c="dimmed" mb="md">
+            Contrato: {selectedContrato.fecha_inicio} → {selectedContrato.fecha_fin} —{' '}
+            <Badge color={selectedContrato.estado === 'activo' ? 'green' : selectedContrato.estado === 'finalizado' ? 'blue' : 'red'} size="sm">
+              {selectedContrato.estado}
+            </Badge>
+          </Text>
+        )}
+
+        {cargos.length === 0 ? (
+          <Text c="dimmed" ta="center" py="md">
+            {selectedContratoId ? 'No hay cargos para este contrato.' : 'Selecciona un contrato para ver sus cargos.'}
+          </Text>
+        ) : (
+          <Table highlightOnHover>
+            <thead>
+              <tr>
+                <th>Mes</th>
+                <th>Año</th>
+                <th>Alquiler</th>
+                <th>Condominio</th>
+                <th>Luz</th>
+                <th>Total</th>
+                <th>Pagado</th>
+                <th>Saldo</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cargos.map((c) => {
+                const saldo = c.monto_total - c.monto_pagado;
+                return (
+                  <tr key={c.id}>
+                    <td>{meses[c.mes - 1]}</td>
+                    <td>{c.anio}</td>
+                    <td>${c.monto_alquiler.toFixed(2)}</td>
+                    <td>{c.monto_condominio ? `$${c.monto_condominio.toFixed(2)}` : '-'}</td>
+                    <td>{c.monto_luz ? `$${c.monto_luz.toFixed(2)}` : '-'}</td>
+                    <td>${c.monto_total.toFixed(2)}</td>
+                    <td>${c.monto_pagado.toFixed(2)}</td>
+                    <td>${saldo.toFixed(2)}</td>
+                    <td>
+                      <Badge color={estadoColor[c.estado_morosidad]}>{estadoLabel[c.estado_morosidad]}</Badge>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+        )}
       </Card>
     </div>
   );

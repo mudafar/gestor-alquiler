@@ -1,44 +1,39 @@
-// Load sql.js dynamically from CDN to avoid module format issues
 let dbInstance: any = null;
 let SQL: any = null;
 
-// Real database implementation using sql.js
 export async function initDatabase(existingDbBytes?: Uint8Array): Promise<any> {
   if (!SQL) {
-    // Load sql.js from CDN as a script
     await new Promise<void>((resolve, reject) => {
-      if ((window as any).initSqlJs) {
-        resolve();
-        return;
-      }
-      const script = document.createElement('script');
-      script.src = 'https://sql.js.org/dist/sql-wasm.js';
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Failed to load sql.js'));
-      document.head.appendChild(script);
+      if ((window as any).initSqlJs) { resolve(); return; }
+      const s = document.createElement('script');
+      s.src = '/sql-wasm-browser.js';
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Failed to load sql.js'));
+      document.head.appendChild(s);
     });
-    
-    const initSqlJs = (window as any).initSqlJs;
-    SQL = await initSqlJs({
-      locateFile: (file: string) => `https://sql.js.org/dist/${file}`,
+    // Pre-fetch wasm bytes so sql.js doesn't need to fetch via URL
+    const wasmResp = await fetch('/sql-wasm.wasm');
+    if (!wasmResp.ok) throw new Error(`WASM fetch failed: ${wasmResp.status}`);
+    const wasmBinary = await wasmResp.arrayBuffer();
+    SQL = await (window as any).initSqlJs({
+      locateFile: (f: string) => `/${f}`,
+      wasmBinary,
     });
   }
 
   if (existingDbBytes) {
     dbInstance = new SQL.Database(existingDbBytes);
-    runMigrations(dbInstance);
+    runCreateTables(dbInstance);
   } else if (!dbInstance) {
     dbInstance = new SQL.Database();
-    createTables(dbInstance);
+    runCreateTables(dbInstance);
   }
 
   return dbInstance;
 }
 
-export function getDatabase(): SqlJs['Database'] {
-  if (!dbInstance) {
-    throw new Error('La base de datos no ha sido inicializada.');
-  }
+export function getDatabase(): any {
+  if (!dbInstance) throw new Error('La base de datos no ha sido inicializada.');
   return dbInstance;
 }
 
@@ -47,17 +42,14 @@ export function exportDatabase(): Uint8Array {
   return db.export();
 }
 
-function createTables(db: SqlJs['Database']) {
-  // Habilitar claves foráneas
+function runCreateTables(db: any) {
   db.run('PRAGMA foreign_keys = ON;');
 
-  // Tabla: locales
   db.run(`
     CREATE TABLE IF NOT EXISTS locales (
       id TEXT PRIMARY KEY,
       nombre TEXT NOT NULL,
       direccion TEXT,
-      estado TEXT NOT NULL CHECK (estado IN ('ocupado', 'vacante')),
       monto_alquiler REAL NOT NULL,
       monto_condominio REAL,
       monto_luz REAL,
@@ -65,64 +57,62 @@ function createTables(db: SqlJs['Database']) {
     );
   `);
 
-  // Tabla: inquilinos
   db.run(`
     CREATE TABLE IF NOT EXISTS inquilinos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      local_id TEXT,
       nombre TEXT NOT NULL,
-      telefono TEXT,
-      activo INTEGER NOT NULL DEFAULT 1 CHECK (activo IN (0, 1)),
-      FOREIGN KEY (local_id) REFERENCES locales(id) ON DELETE CASCADE
+      cedula TEXT UNIQUE,
+      activo INTEGER NOT NULL DEFAULT 1 CHECK (activo IN (0, 1))
     );
   `);
 
-  // Tabla de relación: un inquilino puede tener múltiples locales
   db.run(`
-    CREATE TABLE IF NOT EXISTS inquilino_locales (
-      inquilino_id INTEGER NOT NULL,
+    CREATE TABLE IF NOT EXISTS contratos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       local_id TEXT NOT NULL,
-      PRIMARY KEY (inquilino_id, local_id),
-      FOREIGN KEY (inquilino_id) REFERENCES inquilinos(id) ON DELETE CASCADE,
-      FOREIGN KEY (local_id) REFERENCES locales(id) ON DELETE CASCADE
+      inquilino_id INTEGER NOT NULL,
+      fecha_inicio TEXT NOT NULL,
+      fecha_fin TEXT NOT NULL,
+      monto_alquiler REAL NOT NULL,
+      monto_condominio REAL,
+      monto_luz REAL,
+      observaciones TEXT,
+      estado TEXT NOT NULL CHECK (estado IN ('activo', 'finalizado', 'cancelado')),
+      creado_en TEXT NOT NULL,
+      FOREIGN KEY (local_id) REFERENCES locales(id),
+      FOREIGN KEY (inquilino_id) REFERENCES inquilinos(id)
     );
   `);
 
-  // Tabla: cargos_mensuales
   db.run(`
     CREATE TABLE IF NOT EXISTS cargos_mensuales (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      local_id TEXT NOT NULL,
+      contrato_id INTEGER NOT NULL,
       anio INTEGER NOT NULL,
       mes INTEGER NOT NULL,
       monto_alquiler REAL NOT NULL,
       monto_condominio REAL,
       monto_luz REAL,
       monto_total REAL NOT NULL,
-      monto_pagado REAL NOT NULL DEFAULT 0,
-      estado_morosidad TEXT NOT NULL CHECK (estado_morosidad IN ('al_dia', 'atrasado', 'adelantado')),
-      UNIQUE(local_id, anio, mes),
-      FOREIGN KEY (local_id) REFERENCES locales(id) ON DELETE CASCADE
+      UNIQUE(contrato_id, anio, mes),
+      FOREIGN KEY (contrato_id) REFERENCES contratos(id)
     );
   `);
 
-  // Tabla: pagos
   db.run(`
     CREATE TABLE IF NOT EXISTS pagos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       cargo_mensual_id INTEGER NOT NULL,
-      local_id TEXT NOT NULL,
       fecha_pago TEXT NOT NULL,
-      monto REAL NOT NULL,
-      moneda TEXT NOT NULL CHECK (moneda IN ('USD', 'BS')),
+      monto_bs REAL NOT NULL,
+      tasa_cambio REAL NOT NULL,
+      monto_usd REAL NOT NULL,
       cuenta TEXT NOT NULL CHECK (cuenta IN ('juridica', 'personal')),
       creado_en TEXT NOT NULL,
-      FOREIGN KEY (cargo_mensual_id) REFERENCES cargos_mensuales(id) ON DELETE CASCADE,
-      FOREIGN KEY (local_id) REFERENCES locales(id) ON DELETE CASCADE
+      FOREIGN KEY (cargo_mensual_id) REFERENCES cargos_mensuales(id)
     );
   `);
 
-  // Tabla: egresos
   db.run(`
     CREATE TABLE IF NOT EXISTS egresos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -133,25 +123,15 @@ function createTables(db: SqlJs['Database']) {
       categoria TEXT
     );
   `);
-}
 
-// Run on every existing-DB load to apply incremental migrations
-function runMigrations(db: any) {
-  // Migration 1: add inquilino_locales join table if not present
   db.run(`
-    CREATE TABLE IF NOT EXISTS inquilino_locales (
-      inquilino_id INTEGER NOT NULL,
-      local_id TEXT NOT NULL,
-      PRIMARY KEY (inquilino_id, local_id),
-      FOREIGN KEY (inquilino_id) REFERENCES inquilinos(id) ON DELETE CASCADE,
-      FOREIGN KEY (local_id) REFERENCES locales(id) ON DELETE CASCADE
+    CREATE TABLE IF NOT EXISTS config (
+      clave TEXT PRIMARY KEY,
+      valor TEXT NOT NULL
     );
   `);
 
-  // Migration 2: seed join table from legacy local_id column
-  db.run(`
-    INSERT OR IGNORE INTO inquilino_locales (inquilino_id, local_id)
-    SELECT id, local_id FROM inquilinos
-    WHERE local_id IS NOT NULL AND activo = 1;
-  `);
+  db.run(
+    `INSERT OR IGNORE INTO config (clave, valor) VALUES ('ultima_tasa_cambio', '0')`
+  );
 }

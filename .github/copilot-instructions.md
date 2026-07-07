@@ -1,0 +1,3 @@
+- Code only, no explanation. 
+- Bullets over paragraphs. No explanations unless asked. 
+- Be concise. Focus on high information density.

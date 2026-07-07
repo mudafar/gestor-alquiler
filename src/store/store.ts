@@ -3,10 +3,11 @@ import { immer } from 'zustand/middleware/immer';
 import {
   type Local,
   type Inquilino,
+  type Contrato,
   type CargoMensual,
   type Pago,
   type Egreso,
-  appService
+  appService,
 } from '../services/appService';
 import { initDatabase, exportDatabase } from '../services/db';
 import { saveToIndexedDB, loadFromIndexedDB, clearIndexedDB } from '../services/persistence';
@@ -14,6 +15,7 @@ import { saveToIndexedDB, loadFromIndexedDB, clearIndexedDB } from '../services/
 interface AppState {
   locales: Local[];
   inquilinos: Inquilino[];
+  contratos: Contrato[];
   cargosMensuales: CargoMensual[];
   pagos: Pago[];
   egresos: Egreso[];
@@ -33,19 +35,25 @@ interface AppActions {
   deleteLocal: (id: string) => void;
 
   // Inquilinos
-  createInquilino: (nombre: string, telefono?: string) => void;
-  updateInquilino: (id: number, nombre: string, telefono?: string) => void;
+  createInquilino: (nombre: string, cedula?: string) => void;
+  updateInquilino: (id: number, nombre: string, cedula?: string) => void;
   deleteInquilino: (id: number) => void;
-  asignarInquilinoExistente: (inquilinoId: number, localId: string) => void;
-  asignarInquilinoNuevo: (localId: string, nombre: string, telefono?: string) => void;
-  desasignarInquilino: (inquilinoId: number, localId: string) => void;
 
-  // Cargos Mensuales
-  generarCargoMensual: (localId: string, anio: number, mes: number) => void;
-  generarCargosParaMes: (anio: number, mes: number) => void;
+  // Contratos
+  createContrato: (data: {
+    local_id: string;
+    inquilino_id: number;
+    fecha_inicio: string;
+    fecha_fin: string;
+    monto_alquiler: number;
+    monto_condominio?: number | null;
+    monto_luz?: number | null;
+    observaciones?: string;
+  }) => void;
+  cancelContrato: (contratoId: number) => void;
 
   // Pagos
-  registrarPago: (cargoMensualId: number, localId: string, fechaPago: string, monto: number, moneda: 'USD' | 'BS', cuenta: 'juridica' | 'personal') => void;
+  registrarPago: (cargoMensualId: number, fechaPago: string, monto_bs: number, tasa_cambio: number, cuenta: 'juridica' | 'personal') => void;
   eliminarPago: (pagoId: number) => void;
 
   // Egresos
@@ -59,6 +67,7 @@ export const useAppStore = create<AppState & AppActions>()(
     (set, get) => ({
       locales: [],
       inquilinos: [],
+      contratos: [],
       cargosMensuales: [],
       pagos: [],
       egresos: [],
@@ -66,14 +75,13 @@ export const useAppStore = create<AppState & AppActions>()(
 
       initializeDb: async (dbBytes) => {
         if (dbBytes) {
-          // Manual import from file — overwrite IndexedDB
           await initDatabase(dbBytes);
           await saveToIndexedDB();
         } else {
-          // Auto-load from IndexedDB or start fresh
           const saved = await loadFromIndexedDB();
           await initDatabase(saved ?? undefined);
         }
+        appService.finalizarContratosVencidos();
         set({ dbInitialized: true });
         get().loadAllData();
       },
@@ -102,13 +110,14 @@ export const useAppStore = create<AppState & AppActions>()(
         set((state) => {
           state.locales = appService.getLocales(true);
           state.inquilinos = appService.getInquilinosActivos();
+          state.contratos = appService.getContratos();
           state.cargosMensuales = appService.getCargosMensuales();
           state.pagos = appService.getPagos();
           state.egresos = appService.getEgresos();
         });
       },
 
-      // Locales actions
+      // Locales
       createLocal: (local) => {
         appService.createLocal(local);
         get().loadAllData();
@@ -125,14 +134,14 @@ export const useAppStore = create<AppState & AppActions>()(
         get().persistDb();
       },
 
-      // Inquilinos actions
-      createInquilino: (nombre, telefono) => {
-        appService.createInquilino(nombre, telefono);
+      // Inquilinos
+      createInquilino: (nombre, cedula) => {
+        appService.createInquilino(nombre, cedula);
         get().loadAllData();
         get().persistDb();
       },
-      updateInquilino: (id, nombre, telefono) => {
-        appService.updateInquilino(id, nombre, telefono);
+      updateInquilino: (id, nombre, cedula) => {
+        appService.updateInquilino(id, nombre, cedula);
         get().loadAllData();
         get().persistDb();
       },
@@ -141,37 +150,22 @@ export const useAppStore = create<AppState & AppActions>()(
         get().loadAllData();
         get().persistDb();
       },
-      asignarInquilinoExistente: (inquilinoId, localId) => {
-        appService.asignarInquilinoExistente(inquilinoId, localId);
+
+      // Contratos
+      createContrato: (data) => {
+        appService.createContrato(data);
         get().loadAllData();
         get().persistDb();
       },
-      asignarInquilinoNuevo: (localId, nombre, telefono) => {
-        appService.asignarInquilinoNuevo(localId, nombre, telefono);
-        get().loadAllData();
-        get().persistDb();
-      },
-      desasignarInquilino: (inquilinoId, localId) => {
-        appService.desasignarInquilino(inquilinoId, localId);
+      cancelContrato: (contratoId) => {
+        appService.cancelContrato(contratoId);
         get().loadAllData();
         get().persistDb();
       },
 
-      // Cargos Mensuales actions
-      generarCargoMensual: (localId, anio, mes) => {
-        appService.generarCargoMensual(localId, anio, mes);
-        get().loadAllData();
-        get().persistDb();
-      },
-      generarCargosParaMes: (anio, mes) => {
-        appService.generarCargosParaMes(anio, mes);
-        get().loadAllData();
-        get().persistDb();
-      },
-
-      // Pagos actions
-      registrarPago: (cargoMensualId, localId, fechaPago, monto, moneda, cuenta) => {
-        appService.registrarPago(cargoMensualId, localId, fechaPago, monto, moneda, cuenta);
+      // Pagos
+      registrarPago: (cargoMensualId, fechaPago, monto_bs, tasa_cambio, cuenta) => {
+        appService.registrarPago(cargoMensualId, fechaPago, monto_bs, tasa_cambio, cuenta);
         get().loadAllData();
         get().persistDb();
       },
@@ -181,7 +175,7 @@ export const useAppStore = create<AppState & AppActions>()(
         get().persistDb();
       },
 
-      // Egresos actions
+      // Egresos
       createEgreso: (egreso) => {
         appService.createEgreso(egreso);
         get().loadAllData();

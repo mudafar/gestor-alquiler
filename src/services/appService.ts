@@ -1,10 +1,11 @@
 import { getDatabase } from './db';
 
+// ── Interfaces ──
+
 export interface Local {
-  id: string; // código/ID propio del local
+  id: string;
   nombre: string;
   direccion?: string;
-  estado: 'ocupado' | 'vacante';
   monto_alquiler: number;
   monto_condominio?: number | null;
   monto_luz?: number | null;
@@ -13,21 +14,35 @@ export interface Local {
 
 export interface Inquilino {
   id: number;
-  local_ids: string[];
   nombre: string;
-  telefono?: string;
+  cedula?: string;
   activo: boolean;
+}
+
+export interface Contrato {
+  id: number;
+  local_id: string;
+  inquilino_id: number;
+  fecha_inicio: string;
+  fecha_fin: string;
+  monto_alquiler: number;
+  monto_condominio: number | null;
+  monto_luz: number | null;
+  observaciones: string | null;
+  estado: 'activo' | 'finalizado' | 'cancelado';
+  creado_en: string;
 }
 
 export interface CargoMensual {
   id: number;
-  local_id: string;
+  contrato_id: number;
   anio: number;
   mes: number;
   monto_alquiler: number;
   monto_condominio: number | null;
   monto_luz: number | null;
   monto_total: number;
+  // computed
   monto_pagado: number;
   estado_morosidad: 'al_dia' | 'atrasado' | 'adelantado';
 }
@@ -35,10 +50,10 @@ export interface CargoMensual {
 export interface Pago {
   id: number;
   cargo_mensual_id: number;
-  local_id: string;
   fecha_pago: string;
-  monto: number;
-  moneda: 'USD' | 'BS';
+  monto_bs: number;
+  tasa_cambio: number;
+  monto_usd: number;
   cuenta: 'juridica' | 'personal';
   creado_en: string;
 }
@@ -52,7 +67,13 @@ export interface Egreso {
   categoria?: string;
 }
 
-// Helper to execute SELECT queries and return object arrays
+export interface ConfigRow {
+  clave: string;
+  valor: string;
+}
+
+// ── Helpers ──
+
 function select<T>(sql: string, params: any[] = []): T[] {
   const db = getDatabase();
   const stmt = db.prepare(sql);
@@ -65,13 +86,11 @@ function select<T>(sql: string, params: any[] = []): T[] {
   return rows;
 }
 
-// Helper to execute INSERT, UPDATE, DELETE queries
 function execute(sql: string, params: any[] = []): void {
   const db = getDatabase();
   db.run(sql, params);
 }
 
-// Helper to calculate estado_morosidad dynamically
 export function calcularMorosidad(
   anio: number,
   mes: number,
@@ -80,387 +99,295 @@ export function calcularMorosidad(
   today: Date = new Date()
 ): 'al_dia' | 'atrasado' | 'adelantado' {
   const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth() + 1; // 1-12
+  const currentMonth = today.getMonth() + 1;
   const currentDay = today.getDate();
 
-  // 1. ¿Es un mes futuro?
   const esFuturo = anio > currentYear || (anio === currentYear && mes > currentMonth);
   if (esFuturo) {
     return montoPagado >= montoTotal ? 'adelantado' : 'al_dia';
   }
 
-  // 2. Mes actual o pasado
-  if (montoPagado >= montoTotal) {
-    return 'al_dia'; // Totalmente pagado
-  }
+  if (montoPagado >= montoTotal) return 'al_dia';
 
-  // No está totalmente pagado
   const esMesActual = anio === currentYear && mes === currentMonth;
-  if (esMesActual) {
-    // Si es el mes actual, tiene hasta el día 5 para pagar sin estar atrasado
-    return currentDay <= 5 ? 'al_dia' : 'atrasado';
-  }
+  if (esMesActual) return currentDay <= 5 ? 'al_dia' : 'atrasado';
 
-  // Es un mes pasado y no está totalmente pagado
   return 'atrasado';
 }
 
+// ── Locales ──
+
+function getLocalEstado(localId: string): 'ocupado' | 'vacante' {
+  const activos = select<any>(
+    "SELECT id FROM contratos WHERE local_id = ? AND estado = 'activo' LIMIT 1",
+    [localId]
+  );
+  return activos.length > 0 ? 'ocupado' : 'vacante';
+}
+
+// ── App Service ──
+
 export const appService = {
-  // === LOCALES ===
+  // ===== LOCALES =====
   getLocales(soloActivos: boolean = true): Local[] {
     const query = soloActivos
       ? 'SELECT * FROM locales WHERE activo = 1 ORDER BY id ASC'
       : 'SELECT * FROM locales ORDER BY id ASC';
     const rows = select<any>(query);
-    return rows.map(r => ({
-      ...r,
-      activo: r.activo === 1,
-    }));
+    return rows.map(r => ({ ...r, activo: r.activo === 1 }));
+  },
+
+  getLocalEstado(localId: string): 'ocupado' | 'vacante' {
+    return getLocalEstado(localId);
   },
 
   createLocal(local: Omit<Local, 'activo'>): void {
     execute(
-      `INSERT INTO locales (id, nombre, direccion, estado, monto_alquiler, monto_condominio, monto_luz, activo)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
-      [
-        local.id,
-        local.nombre,
-        local.direccion || null,
-        local.estado,
-        local.monto_alquiler,
-        local.monto_condominio || null,
-        local.monto_luz || null,
-      ]
+      `INSERT INTO locales (id, nombre, direccion, monto_alquiler, monto_condominio, monto_luz, activo)
+       VALUES (?, ?, ?, ?, ?, ?, 1)`,
+      [local.id, local.nombre, local.direccion || null, local.monto_alquiler, local.monto_condominio || null, local.monto_luz || null]
     );
   },
 
   updateLocal(local: Local): void {
     execute(
-      `UPDATE locales
-       SET nombre = ?, direccion = ?, estado = ?, monto_alquiler = ?, monto_condominio = ?, monto_luz = ?, activo = ?
-       WHERE id = ?`,
-      [
-        local.nombre,
-        local.direccion || null,
-        local.estado,
-        local.monto_alquiler,
-        local.monto_condominio || null,
-        local.monto_luz || null,
-        local.activo ? 1 : 0,
-        local.id,
-      ]
+      `UPDATE locales SET nombre = ?, direccion = ?, monto_alquiler = ?, monto_condominio = ?, monto_luz = ?, activo = ? WHERE id = ?`,
+      [local.nombre, local.direccion || null, local.monto_alquiler, local.monto_condominio || null, local.monto_luz || null, local.activo ? 1 : 0, local.id]
     );
-
-    // Si un local pasa a vacante, limpiar todas las asignaciones de inquilinos
-    if (local.estado === 'vacante') {
-      execute('DELETE FROM inquilino_locales WHERE local_id = ?', [local.id]);
-    }
   },
 
   deleteLocal(id: string): void {
-    // Soft delete
     execute('UPDATE locales SET activo = 0 WHERE id = ?', [id]);
-    // Remove all inquilino assignments for this local
-    execute('DELETE FROM inquilino_locales WHERE local_id = ?', [id]);
   },
 
-  // === INQUILINOS ===
+  // ===== INQUILINOS =====
   getInquilinosActivos(): Inquilino[] {
     const rows = select<any>('SELECT * FROM inquilinos WHERE activo = 1 ORDER BY nombre ASC');
-    return rows.map(r => {
-      const localRows = select<any>('SELECT local_id FROM inquilino_locales WHERE inquilino_id = ?', [r.id]);
-      return {
-        id: r.id,
-        nombre: r.nombre,
-        telefono: r.telefono ?? undefined,
-        local_ids: localRows.map((lr: any) => lr.local_id),
-        activo: true,
-      };
-    });
+    return rows.map(r => ({ id: r.id, nombre: r.nombre, cedula: r.cedula ?? undefined, activo: true }));
   },
 
   getAllInquilinos(): Inquilino[] {
     const rows = select<any>('SELECT * FROM inquilinos ORDER BY nombre ASC');
-    return rows.map(r => {
-      const localRows = select<any>('SELECT local_id FROM inquilino_locales WHERE inquilino_id = ?', [r.id]);
-      return {
-        id: r.id,
-        nombre: r.nombre,
-        telefono: r.telefono ?? undefined,
-        local_ids: localRows.map((lr: any) => lr.local_id),
-        activo: r.activo === 1,
-      };
-    });
+    return rows.map(r => ({ id: r.id, nombre: r.nombre, cedula: r.cedula ?? undefined, activo: r.activo === 1 }));
   },
 
-  getInquilinoActivoPorLocal(localId: string): Inquilino | null {
-    const rows = select<any>(
-      `SELECT i.* FROM inquilinos i
-       JOIN inquilino_locales il ON i.id = il.inquilino_id
-       WHERE il.local_id = ? AND i.activo = 1
-       LIMIT 1`,
-      [localId]
-    );
-    if (rows.length === 0) return null;
-    const r = rows[0];
-    const localRows = select<any>('SELECT local_id FROM inquilino_locales WHERE inquilino_id = ?', [r.id]);
-    return {
-      id: r.id,
-      nombre: r.nombre,
-      telefono: r.telefono ?? undefined,
-      local_ids: localRows.map((lr: any) => lr.local_id),
-      activo: true,
-    };
-  },
-
-  createInquilino(nombre: string, telefono?: string): number {
+  createInquilino(nombre: string, cedula?: string): number {
     const db = getDatabase();
-    db.run('INSERT INTO inquilinos (local_id, nombre, telefono, activo) VALUES (NULL, ?, ?, 1)', [nombre, telefono || null]);
+    db.run('INSERT INTO inquilinos (nombre, cedula, activo) VALUES (?, ?, 1)', [nombre, cedula || null]);
     const result = db.exec('SELECT last_insert_rowid() AS id');
     return result[0].values[0][0] as number;
   },
 
-  updateInquilino(id: number, nombre: string, telefono?: string): void {
-    execute('UPDATE inquilinos SET nombre = ?, telefono = ? WHERE id = ?', [nombre, telefono || null, id]);
+  updateInquilino(id: number, nombre: string, cedula?: string): void {
+    execute('UPDATE inquilinos SET nombre = ?, cedula = ? WHERE id = ?', [nombre, cedula || null, id]);
   },
 
   deleteInquilino(id: number): void {
     execute('UPDATE inquilinos SET activo = 0 WHERE id = ?', [id]);
-    // Remove all local assignments for this inquilino
-    execute('DELETE FROM inquilino_locales WHERE inquilino_id = ?', [id]);
   },
 
-  asignarInquilinoExistente(inquilinoId: number, localId: string): void {
-    // Add to join table (ignore if already assigned)
-    execute('INSERT OR IGNORE INTO inquilino_locales (inquilino_id, local_id) VALUES (?, ?)', [inquilinoId, localId]);
-    // Ensure inquilino is active
-    execute('UPDATE inquilinos SET activo = 1 WHERE id = ?', [inquilinoId]);
-    // Mark local as ocupado
-    execute("UPDATE locales SET estado = 'ocupado' WHERE id = ?", [localId]);
+  // ===== CONTRATOS =====
+  getContratos(): Contrato[] {
+    return select<Contrato>('SELECT * FROM contratos ORDER BY creado_en DESC');
   },
 
-  asignarInquilinoNuevo(localId: string, nombre: string, telefono?: string): void {
-    const db = getDatabase();
-    db.run('INSERT INTO inquilinos (local_id, nombre, telefono, activo) VALUES (NULL, ?, ?, 1)', [nombre, telefono || null]);
-    const result = db.exec('SELECT last_insert_rowid() AS id');
-    const inquilinoId = result[0].values[0][0] as number;
-    // Add to join table
-    execute('INSERT OR IGNORE INTO inquilino_locales (inquilino_id, local_id) VALUES (?, ?)', [inquilinoId, localId]);
-    // Mark local as occupied
-    execute("UPDATE locales SET estado = 'ocupado' WHERE id = ?", [localId]);
+  getContratosPorLocal(localId: string): Contrato[] {
+    return select<Contrato>('SELECT * FROM contratos WHERE local_id = ? ORDER BY creado_en DESC', [localId]);
   },
 
-  desasignarInquilino(inquilinoId: number, localId: string): void {
-    // Remove the specific assignment
-    execute('DELETE FROM inquilino_locales WHERE inquilino_id = ? AND local_id = ?', [inquilinoId, localId]);
-
-    // If no more active inquilinos remain for this local, mark it vacante
-    const remaining = select<any>(
-      `SELECT i.id FROM inquilinos i
-       JOIN inquilino_locales il ON i.id = il.inquilino_id
-       WHERE il.local_id = ? AND i.activo = 1`,
+  getContratoActivo(localId: string): Contrato | null {
+    const rows = select<Contrato>(
+      "SELECT * FROM contratos WHERE local_id = ? AND estado = 'activo' LIMIT 1",
       [localId]
     );
-    if (remaining.length === 0) {
-      execute("UPDATE locales SET estado = 'vacante' WHERE id = ?", [localId]);
+    return rows.length > 0 ? rows[0] : null;
+  },
+
+  createContrato(data: {
+    local_id: string;
+    inquilino_id: number;
+    fecha_inicio: string;
+    fecha_fin: string;
+    monto_alquiler: number;
+    monto_condominio?: number | null;
+    monto_luz?: number | null;
+    observaciones?: string;
+  }): void {
+    const activo = this.getContratoActivo(data.local_id);
+    if (activo) throw new Error(`El local ya tiene un contrato activo.`);
+
+    const db = getDatabase();
+    const timestamp = new Date().toISOString();
+
+    db.run(
+      `INSERT INTO contratos (local_id, inquilino_id, fecha_inicio, fecha_fin, monto_alquiler, monto_condominio, monto_luz, observaciones, estado, creado_en)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'activo', ?)`,
+      [data.local_id, data.inquilino_id, data.fecha_inicio, data.fecha_fin, data.monto_alquiler, data.monto_condominio || null, data.monto_luz || null, data.observaciones || null, timestamp]
+    );
+
+    const result = db.exec('SELECT last_insert_rowid() AS id');
+    const contratoId = result[0].values[0][0] as number;
+
+    // Generate cargos_mensuales
+    this._generarCargosParaContrato(contratoId, data.fecha_inicio, data.fecha_fin, data.monto_alquiler, data.monto_condominio ?? 0, data.monto_luz ?? 0);
+  },
+
+  _generarCargosParaContrato(contratoId: number, fechaInicio: string, fechaFin: string, montoAlquiler: number, montoCondominio: number, montoLuz: number): void {
+    const [anioInicio, mesInicio] = fechaInicio.split('-').map(Number);
+    const [anioFin, mesFin] = fechaFin.split('-').map(Number);
+
+    let y = anioInicio, m = mesInicio;
+    while (y < anioFin || (y === anioFin && m <= mesFin)) {
+      const total = montoAlquiler + montoCondominio + montoLuz;
+      execute(
+        `INSERT OR IGNORE INTO cargos_mensuales (contrato_id, anio, mes, monto_alquiler, monto_condominio, monto_luz, monto_total)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [contratoId, y, m, montoAlquiler, montoCondominio || null, montoLuz || null, total]
+      );
+      m++;
+      if (m > 12) { m = 1; y++; }
     }
   },
 
-  // === CARGOS MENSUALES ===
-  getCargosMensuales(filters?: { localId?: string; anio?: number; mes?: number }): CargoMensual[] {
+  cancelContrato(contratoId: number): void {
+    const contratos = select<Contrato>('SELECT * FROM contratos WHERE id = ?', [contratoId]);
+    if (contratos.length === 0) throw new Error('Contrato no encontrado.');
+    const contrato = contratos[0];
+    if (contrato.estado !== 'activo') throw new Error('Solo se pueden cancelar contratos activos.');
+
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1;
+
+    // Find cargos to delete: future cargos without payments
+    const cargosFuturos = select<any>(
+      'SELECT id FROM cargos_mensuales WHERE contrato_id = ? AND (anio > ? OR (anio = ? AND mes > ?))',
+      [contratoId, currentYear, currentYear, currentMonth]
+    );
+
+    for (const cargo of cargosFuturos) {
+      const pagosCargo = select<any>('SELECT COUNT(*) as cnt FROM pagos WHERE cargo_mensual_id = ?', [cargo.id]);
+      const hasPagos = pagosCargo[0]?.cnt > 0;
+      if (!hasPagos) {
+        execute('DELETE FROM cargos_mensuales WHERE id = ?', [cargo.id]);
+      }
+    }
+
+    execute("UPDATE contratos SET estado = 'cancelado' WHERE id = ?", [contratoId]);
+  },
+
+  finalizarContratosVencidos(): void {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const fechaActual = `${year}-${month}`;
+
+    execute(
+      "UPDATE contratos SET estado = 'finalizado' WHERE estado = 'activo' AND fecha_fin < ?",
+      [fechaActual]
+    );
+  },
+
+  // ===== CARGOS MENSUALES =====
+  getCargosMensuales(filters?: { contratoId?: number }): CargoMensual[] {
     let query = 'SELECT * FROM cargos_mensuales';
     const conditions: string[] = [];
     const params: any[] = [];
 
-    if (filters?.localId) {
-      conditions.push('local_id = ?');
-      params.push(filters.localId);
-    }
-    if (filters?.anio) {
-      conditions.push('anio = ?');
-      params.push(filters.anio);
-    }
-    if (filters?.mes) {
-      conditions.push('mes = ?');
-      params.push(filters.mes);
+    if (filters?.contratoId) {
+      conditions.push('contrato_id = ?');
+      params.push(filters.contratoId);
     }
 
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
-    }
-    query += ' ORDER BY anio DESC, mes DESC, local_id ASC';
+    if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ');
+    query += ' ORDER BY anio DESC, mes DESC';
 
     const rows = select<any>(query, params);
-    
-    // Recalcular el estado de morosidad al consultar
-    const updatedRows = rows.map(r => {
-      const estado_morosidad = calcularMorosidad(
-        r.anio,
-        r.mes,
-        r.monto_total,
-        r.monto_pagado
-      );
-      if (estado_morosidad !== r.estado_morosidad) {
-        execute('UPDATE cargos_mensuales SET estado_morosidad = ? WHERE id = ?', [estado_morosidad, r.id]);
-      }
-      return {
-        ...r,
-        estado_morosidad,
-      };
-    });
-
-    return updatedRows;
+    return rows.map(r => this._computeCargoFields(r));
   },
 
-  generarCargoMensual(localId: string, anio: number, mes: number): void {
-    // 1. Verificar si ya existe un cargo para ese local en ese mes
-    const existentes = select<any>(
-      'SELECT id FROM cargos_mensuales WHERE local_id = ? AND anio = ? AND mes = ?',
-      [localId, anio, mes]
-    );
-    if (existentes.length > 0) {
-      return; // Ya existe
-    }
-
-    // 2. Obtener datos del local
-    const locales = select<any>('SELECT * FROM locales WHERE id = ? AND activo = 1', [localId]);
-    if (locales.length === 0) {
-      throw new Error(`El local ${localId} no existe o está inactivo.`);
-    }
-    const local = locales[0];
-
-    const monto_alquiler = local.monto_alquiler;
-    const monto_condominio = local.monto_condominio || 0;
-    const monto_luz = local.monto_luz || 0;
-    const monto_total = monto_alquiler + monto_condominio + monto_luz;
-    const estado_morosidad = calcularMorosidad(anio, mes, monto_total, 0);
-
-    execute(
-      `INSERT INTO cargos_mensuales (local_id, anio, mes, monto_alquiler, monto_condominio, monto_luz, monto_total, monto_pagado, estado_morosidad)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-      [
-        localId,
-        anio,
-        mes,
-        monto_alquiler,
-        local.monto_condominio || null,
-        local.monto_luz || null,
-        monto_total,
-        estado_morosidad,
-      ]
-    );
+  getCargosPorContrato(contratoId: number): CargoMensual[] {
+    return this.getCargosMensuales({ contratoId });
   },
 
-  generarCargosParaMes(anio: number, mes: number): number {
-    // Obtener todos los locales ocupados y activos
-    const localesOcupados = select<any>("SELECT id FROM locales WHERE activo = 1 AND estado = 'ocupado'");
-    let creados = 0;
-    for (const loc of localesOcupados) {
-      const existentes = select<any>(
-        'SELECT id FROM cargos_mensuales WHERE local_id = ? AND anio = ? AND mes = ?',
-        [loc.id, anio, mes]
-      );
-      if (existentes.length === 0) {
-        this.generarCargoMensual(loc.id, anio, mes);
-        creados++;
-      }
-    }
-    return creados;
+  _computeCargoFields(row: any): CargoMensual {
+    const pagosCargo = select<any>('SELECT COALESCE(SUM(monto_usd), 0) as total FROM pagos WHERE cargo_mensual_id = ?', [row.id]);
+    const montoPagado = pagosCargo[0]?.total || 0;
+    const estado = calcularMorosidad(row.anio, row.mes, row.monto_total, montoPagado);
+    return {
+      id: row.id,
+      contrato_id: row.contrato_id,
+      anio: row.anio,
+      mes: row.mes,
+      monto_alquiler: row.monto_alquiler,
+      monto_condominio: row.monto_condominio,
+      monto_luz: row.monto_luz,
+      monto_total: row.monto_total,
+      monto_pagado: montoPagado,
+      estado_morosidad: estado,
+    };
   },
 
-  // === PAGOS ===
-  getPagos(filters?: { localId?: string; cargoMensualId?: number }): Pago[] {
+  // ===== PAGOS =====
+  getPagos(filters?: { cargoMensualId?: number }): Pago[] {
     let query = 'SELECT * FROM pagos';
     const conditions: string[] = [];
     const params: any[] = [];
 
-    if (filters?.localId) {
-      conditions.push('local_id = ?');
-      params.push(filters.localId);
-    }
     if (filters?.cargoMensualId) {
       conditions.push('cargo_mensual_id = ?');
       params.push(filters.cargoMensualId);
     }
 
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
-    }
+    if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ');
     query += ' ORDER BY fecha_pago DESC, creado_en DESC';
 
     return select<Pago>(query, params);
   },
 
+  getSaldoPendiente(cargoMensualId: number): number {
+    const cargos = select<any>('SELECT monto_total FROM cargos_mensuales WHERE id = ?', [cargoMensualId]);
+    if (cargos.length === 0) return 0;
+    const total = cargos[0].monto_total;
+    const pagos = select<any>('SELECT COALESCE(SUM(monto_usd), 0) as total FROM pagos WHERE cargo_mensual_id = ?', [cargoMensualId]);
+    const pagado = pagos[0]?.total || 0;
+    return total - pagado;
+  },
+
   registrarPago(
     cargoMensualId: number,
-    localId: string,
     fechaPago: string,
-    monto: number,
-    moneda: 'USD' | 'BS',
+    monto_bs: number,
+    tasa_cambio: number,
     cuenta: 'juridica' | 'personal'
   ): void {
+    if (tasa_cambio <= 0) throw new Error('La tasa de cambio debe ser mayor a 0.');
+    if (monto_bs <= 0) throw new Error('El monto en BS debe ser mayor a 0.');
+
+    const monto_usd = monto_bs / tasa_cambio;
+    const saldo = this.getSaldoPendiente(cargoMensualId);
+
+    if (monto_usd > saldo) {
+      throw new Error(`El pago excede el saldo pendiente. Saldo: $${saldo.toFixed(2)}, pago: $${monto_usd.toFixed(2)}.`);
+    }
+
     const timestamp = new Date().toISOString();
 
-    // 1. Insertar el pago
     execute(
-      `INSERT INTO pagos (cargo_mensual_id, local_id, fecha_pago, monto, moneda, cuenta, creado_en)
+      `INSERT INTO pagos (cargo_mensual_id, fecha_pago, monto_bs, tasa_cambio, monto_usd, cuenta, creado_en)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [cargoMensualId, localId, fechaPago, monto, moneda, cuenta, timestamp]
+      [cargoMensualId, fechaPago, monto_bs, tasa_cambio, monto_usd, cuenta, timestamp]
     );
 
-    // 2. Actualizar el monto pagado acumulado y morosidad en el cargo correspondiente
-    // NOTA: Como no hay tasa de cambio, el pago 'monto' se asume que abona la misma cantidad al cargo
-    // de acuerdo a la regla de negocio (los pagos se registran por el monto correspondiente).
-    const pagosCargo = select<any>('SELECT SUM(monto) as total_pagado FROM pagos WHERE cargo_mensual_id = ?', [cargoMensualId]);
-    const nuevoMontoPagado = pagosCargo[0]?.total_pagado || 0;
-
-    const cargoRows = select<any>('SELECT * FROM cargos_mensuales WHERE id = ?', [cargoMensualId]);
-    if (cargoRows.length > 0) {
-      const cargo = cargoRows[0];
-      const nuevoEstado = calcularMorosidad(
-        cargo.anio,
-        cargo.mes,
-        cargo.monto_total,
-        nuevoMontoPagado
-      );
-
-      execute(
-        'UPDATE cargos_mensuales SET monto_pagado = ?, estado_morosidad = ? WHERE id = ?',
-        [nuevoMontoPagado, nuevoEstado, cargoMensualId]
-      );
-    }
+    // Update last exchange rate
+    this.setConfig('ultima_tasa_cambio', tasa_cambio.toString());
   },
 
   eliminarPago(pagoId: number): void {
-    const pagos = select<any>('SELECT * FROM pagos WHERE id = ?', [pagoId]);
-    if (pagos.length === 0) return;
-    const pago = pagos[0];
-
-    // 1. Eliminar el pago
     execute('DELETE FROM pagos WHERE id = ?', [pagoId]);
-
-    // 2. Recalcular el total pagado para el cargo mensual
-    const pagosCargo = select<any>('SELECT SUM(monto) as total_pagado FROM pagos WHERE cargo_mensual_id = ?', [pago.cargo_mensual_id]);
-    const nuevoMontoPagado = pagosCargo[0]?.total_pagado || 0;
-
-    const cargoRows = select<any>('SELECT * FROM cargos_mensuales WHERE id = ?', [pago.cargo_mensual_id]);
-    if (cargoRows.length > 0) {
-      const cargo = cargoRows[0];
-      const nuevoEstado = calcularMorosidad(
-        cargo.anio,
-        cargo.mes,
-        cargo.monto_total,
-        nuevoMontoPagado
-      );
-
-      execute(
-        'UPDATE cargos_mensuales SET monto_pagado = ?, estado_morosidad = ? WHERE id = ?',
-        [nuevoMontoPagado, nuevoEstado, cargo.id]
-      );
-    }
   },
 
-  // === EGRESOS ===
+  // ===== EGRESOS =====
   getEgresos(filters?: { fechaInicio?: string; fechaFin?: string }): Egreso[] {
     let query = 'SELECT * FROM egresos';
     const conditions: string[] = [];
@@ -475,9 +402,7 @@ export const appService = {
       params.push(filters.fechaFin);
     }
 
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
-    }
+    if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ');
     query += ' ORDER BY fecha DESC, id DESC';
 
     return select<Egreso>(query, params);
@@ -501,103 +426,13 @@ export const appService = {
     execute('DELETE FROM egresos WHERE id = ?', [id]);
   },
 
-  // === REPORTES Y CONSULTAS ESPECIALES ===
-  getReporteResumen(fechaInicio: string, fechaFin: string) {
-    // 1. Ingresos (pagos) por moneda y por cuenta
-    const ingresos = select<any>(
-      `SELECT moneda, cuenta, SUM(monto) as total
-       FROM pagos
-       WHERE fecha_pago >= ? AND fecha_pago <= ?
-       GROUP BY moneda, cuenta`,
-      [fechaInicio, fechaFin]
-    );
-
-    // 2. Egresos por moneda
-    const egresos = select<any>(
-      `SELECT moneda, SUM(monto) as total
-       FROM egresos
-       WHERE fecha >= ? AND fecha <= ?
-       GROUP BY moneda`,
-      [fechaInicio, fechaFin]
-    );
-
-    // Estructurar el resultado
-    const ingresosPorMonedaYCuenta = {
-      USD: { juridica: 0, personal: 0, total: 0 },
-      BS: { juridica: 0, personal: 0, total: 0 },
-    };
-
-    ingresos.forEach((ing: any) => {
-      const mon = ing.moneda as 'USD' | 'BS';
-      const cta = ing.cuenta as 'juridica' | 'personal';
-      if (ingresosPorMonedaYCuenta[mon]) {
-        ingresosPorMonedaYCuenta[mon][cta] = ing.total;
-        ingresosPorMonedaYCuenta[mon].total += ing.total;
-      }
-    });
-
-    const egresosPorMoneda = {
-      USD: 0,
-      BS: 0,
-    };
-
-    egresos.forEach((egr: any) => {
-      const mon = egr.moneda as 'USD' | 'BS';
-      if (egresosPorMoneda[mon] !== undefined) {
-        egresosPorMoneda[mon] = egr.total;
-      }
-    });
-
-    return {
-      ingresos: ingresosPorMonedaYCuenta,
-      egresos: egresosPorMoneda,
-    };
+  // ===== CONFIG =====
+  getConfig(clave: string): string | null {
+    const rows = select<ConfigRow>('SELECT valor FROM config WHERE clave = ?', [clave]);
+    return rows.length > 0 ? rows[0].valor : null;
   },
 
-  getFichaLocal(localId: string) {
-    const local = this.getLocales(false).find(l => l.id === localId);
-    if (!local) return null;
-
-    const inquilino = this.getInquilinoActivoPorLocal(localId);
-    const cargos = this.getCargosMensuales({ localId });
-    const pagos = this.getPagos({ localId });
-
-    // Calcular balance general del local (en USD)
-    const totalCargado = cargos.reduce((sum, c) => sum + c.monto_total, 0);
-    const totalPagadoEnUSD = pagos
-      .filter(p => p.moneda === 'USD')
-      .reduce((sum, p) => sum + p.monto, 0);
-
-    // Nota: los pagos en BS se registran en el cargo, pero en reportes generales o balances por moneda,
-    // los listamos por separado. El saldo pendiente en USD de cargos activos:
-    const saldoPendienteUSD = cargos.reduce((sum, c) => sum + Math.max(0, c.monto_total - c.monto_pagado), 0);
-
-    return {
-      local,
-      inquilino,
-      cargos,
-      pagos,
-      totalCargado,
-      totalPagadoEnUSD,
-      saldoPendienteUSD,
-    };
-  },
-
-  getMorosos(): (CargoMensual & { nombreLocal: string; nombreInquilino: string })[] {
-    // Obtener todos los cargos atrasados
-    const cargosAtrasados = this.getCargosMensuales().filter(c => c.estado_morosidad === 'atrasado');
-
-    // Mapear con nombres de local e inquilino activo
-    const locales = this.getLocales(false);
-    
-    return cargosAtrasados.map(cargo => {
-      const loc = locales.find(l => l.id === cargo.local_id);
-      const inq = this.getInquilinoActivoPorLocal(cargo.local_id);
-      return {
-        ...cargo,
-        nombreLocal: loc ? loc.nombre : 'Local desconocido',
-        nombreInquilino: inq ? inq.nombre : 'Sin inquilino',
-      };
-    });
+  setConfig(clave: string, valor: string): void {
+    execute('INSERT OR REPLACE INTO config (clave, valor) VALUES (?, ?)', [clave, valor]);
   },
 };
