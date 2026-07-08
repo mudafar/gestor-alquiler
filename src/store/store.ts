@@ -30,9 +30,9 @@ interface AppActions {
   persistDb: () => Promise<void>;
 
   // Locales
-  createLocal: (local: Omit<Local, 'activo'>) => void;
+  createLocal: (local: Omit<Local, 'id' | 'activo'>) => void;
   updateLocal: (local: Local) => void;
-  deleteLocal: (id: string) => void;
+  deleteLocal: (id: number) => void;
 
   // Inquilinos
   createInquilino: (nombre: string, cedula?: string) => void;

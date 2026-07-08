@@ -47,7 +47,7 @@ function runCreateTables(db: any) {
 
   db.run(`
     CREATE TABLE IF NOT EXISTS locales (
-      id TEXT PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       nombre TEXT NOT NULL,
       direccion TEXT,
       monto_alquiler REAL NOT NULL,
@@ -69,7 +69,7 @@ function runCreateTables(db: any) {
   db.run(`
     CREATE TABLE IF NOT EXISTS contratos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      local_id TEXT NOT NULL,
+      local_id INTEGER NOT NULL,
       inquilino_id INTEGER NOT NULL,
       fecha_inicio TEXT NOT NULL,
       fecha_fin TEXT NOT NULL,

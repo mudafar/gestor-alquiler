@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   NumberInput,
   Button,
@@ -13,12 +13,14 @@ import { useForm } from '@mantine/form';
 import { useAppStore } from '../../store/store';
 import { appService } from '../../services/appService';
 import { notifications } from '@mantine/notifications';
+import { IconCheck } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 
 interface PagoFormData {
   contrato_id: string;
   cargo_mensual_id: number;
   fecha_pago: string;
+  monto_usd: number;
   monto_bs: number;
   tasa_cambio: number;
   cuenta: 'juridica' | 'personal';
@@ -33,11 +35,15 @@ export function PagosModule() {
     return val ? parseFloat(val) : 0;
   }, []);
 
+  const lastEdited = useRef<'usd' | 'bs' | null>(null);
+  const firstFieldRef = useRef<HTMLInputElement>(null);
+
   const form = useForm<PagoFormData>({
     initialValues: {
       contrato_id: '',
       cargo_mensual_id: 0,
       fecha_pago: dayjs().format('YYYY-MM-DD'),
+      monto_usd: 0,
       monto_bs: 0,
       tasa_cambio: ultimaTasa || 0,
       cuenta: 'juridica',
@@ -65,8 +71,6 @@ export function PagosModule() {
     [cargosMensuales, form.values.contrato_id]
   );
 
-  const montoUsdCalculado = form.values.monto_bs > 0 && form.values.tasa_cambio > 0 ? form.values.monto_bs / form.values.tasa_cambio : 0;
-
   const cargoOptions = useMemo(
     () =>
       cargosDelContrato.map((c) => {
@@ -79,22 +83,36 @@ export function PagosModule() {
     [cargosDelContrato]
   );
 
-  const handleSubmit = (values: PagoFormData) => {
+  const doCreate = (values: PagoFormData, showHistorial: boolean) => {
     try {
       registrarPago(values.cargo_mensual_id, values.fecha_pago, values.monto_bs, values.tasa_cambio, values.cuenta);
-      notifications({ title: 'Pago registrado', message: `Pago de Bs. ${values.monto_bs.toFixed(2)} registrado.`, color: 'green' });
+      notifications.show({ title: 'Pago registrado', message: `Pago de Bs. ${values.monto_bs.toFixed(2)} registrado.`, color: 'green', icon: <IconCheck size={18} /> });
       form.reset();
       form.setValues({
         contrato_id: '',
         cargo_mensual_id: 0,
         fecha_pago: dayjs().format('YYYY-MM-DD'),
+        monto_usd: 0,
         monto_bs: 0,
         tasa_cambio: ultimaTasa || 0,
         cuenta: 'juridica',
       });
+      lastEdited.current = null;
+      if (showHistorial) setVerHistorial(true);
     } catch (e: any) {
-      notifications({ title: 'Error', message: e.message, color: 'red' });
+      // Keep form values on validation failure (e.g. overpayment) so user can correct
+      notifications.show({ title: 'Error', message: e.message, color: 'red' });
     }
+  };
+
+  const handleSubmit = (values: PagoFormData) => {
+    doCreate(values, true); // "Crear" → show historial after save
+  };
+
+  const handleCreateAndAddAnother = () => {
+    const result = form.validate();
+    if (result.hasErrors) return;
+    doCreate(form.values, false); // stay on form, reset
   };
 
   // Build pago history with contrato/cargo info
@@ -137,6 +155,14 @@ export function PagosModule() {
               error={form.errors.contrato_id}
               onChange={(v) => {
                 form.setValues((prev) => ({ ...prev, contrato_id: v || '', cargo_mensual_id: 0 }));
+                if (!v) return;
+                const fecha = dayjs(form.values.fecha_pago);
+                const mesActual = fecha.month() + 1;
+                const anioActual = fecha.year();
+                const match = cargosMensuales.find(
+                  (c) => c.contrato_id.toString() === v && c.anio === anioActual && c.mes === mesActual && c.monto_pagado < c.monto_total
+                );
+                if (match) form.setFieldValue('cargo_mensual_id', match.id);
               }}
             />
 
@@ -152,15 +178,48 @@ export function PagosModule() {
 
             <TextInput label="Fecha de Pago" placeholder="YYYY-MM-DD" {...form.getInputProps('fecha_pago')} />
 
-            <NumberInput label="Monto en Bolívares (BS)" placeholder="Monto en BS" decimalScale={2} {...form.getInputProps('monto_bs')} />
+            <NumberInput
+              label="Monto (USD)"
+              placeholder="Monto en USD"
+              decimalScale={2}
+              value={form.values.monto_usd}
+              onChange={(v) => {
+                const usd = v || 0;
+                form.setFieldValue('monto_usd', usd);
+                if (form.values.tasa_cambio > 0) form.setFieldValue('monto_bs', usd * form.values.tasa_cambio);
+                lastEdited.current = 'usd';
+              }}
+            />
 
-            <NumberInput label="Tasa de Cambio (BS/USD)" placeholder="Tasa de cambio" decimalScale={2} {...form.getInputProps('tasa_cambio')} />
+            <NumberInput
+              label="Monto en Bolívares (BS)"
+              placeholder="Monto en BS"
+              decimalScale={2}
+              {...form.getInputProps('monto_bs')}
+              onChange={(v) => {
+                const bs = v || 0;
+                form.setFieldValue('monto_bs', bs);
+                if (form.values.tasa_cambio > 0) form.setFieldValue('monto_usd', bs / form.values.tasa_cambio);
+                lastEdited.current = 'bs';
+              }}
+            />
 
-            {montoUsdCalculado > 0 && (
-              <Text size="sm" c="blue" mt={4}>
-                Equivalente en USD: <strong>${montoUsdCalculado.toFixed(2)}</strong>
-              </Text>
-            )}
+            <NumberInput
+              label="Tasa de Cambio (BS/USD)"
+              placeholder="Tasa de cambio"
+              decimalScale={2}
+              {...form.getInputProps('tasa_cambio')}
+              onChange={(v) => {
+                const tasa = v || 0;
+                form.setFieldValue('tasa_cambio', tasa);
+                if (tasa <= 0) return;
+                if (lastEdited.current === 'usd') {
+                  form.setFieldValue('monto_bs', form.values.monto_usd * tasa);
+                } else if (lastEdited.current === 'bs') {
+                  form.setFieldValue('monto_usd', form.values.monto_bs / tasa);
+                }
+              }}
+            />
 
             <Select
               label="Cuenta"
@@ -173,7 +232,9 @@ export function PagosModule() {
             />
 
             <Group justify="flex-end" mt="md">
-              <Button type="submit">Registrar Pago</Button>
+              <Button variant="default" onClick={() => setVerHistorial(true)}>Cancelar</Button>
+              <Button type="submit">Crear</Button>
+              <Button variant="outline" type="button" onClick={handleCreateAndAddAnother}>Crear y agregar otro</Button>
             </Group>
           </form>
         </Card>
@@ -220,7 +281,7 @@ export function PagosModule() {
                         title="Eliminar pago"
                         onClick={() => {
                           eliminarPago(p.id);
-                          notifications({ title: 'Pago eliminado', message: 'El pago ha sido eliminado.', color: 'orange' });
+                          notifications.show({ title: 'Pago eliminado', message: 'El pago ha sido eliminado.', color: 'orange' });
                         }}
                       >
                         Eliminar

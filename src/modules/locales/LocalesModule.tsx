@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   TextInput,
   NumberInput,
@@ -14,13 +14,12 @@ import {
   Alert,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconTrash, IconPencil, IconPlus, IconX } from '@tabler/icons-react';
+import { IconTrash, IconPencil, IconPlus, IconX, IconCheck } from '@tabler/icons-react';
 import { useAppStore } from '../../store/store';
 import { appService } from '../../services/appService';
 import { notifications } from '@mantine/notifications';
 
 interface LocalFormData {
-  id: string;
   nombre: string;
   direccion?: string;
   monto_alquiler: number;
@@ -32,11 +31,11 @@ export function LocalesModule() {
   const { locales, contratos, createLocal, updateLocal, deleteLocal } = useAppStore();
   const [modalOpened, setModalOpened] = useState(false);
   const [editingLocal, setEditingLocal] = useState<LocalFormData | null>(null);
-  const [deletingLocalId, setDeletingLocalId] = useState<string | null>(null);
+  const [deletingLocalId, setDeletingLocalId] = useState<number | null>(null);
+  const firstFieldRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<LocalFormData>({
     initialValues: {
-      id: '',
       nombre: '',
       direccion: '',
       monto_alquiler: 0,
@@ -44,53 +43,64 @@ export function LocalesModule() {
       monto_luz: null,
     },
     validate: {
-      id: (value) => (value.trim() ? null : 'El ID es requerido'),
       nombre: (value) => (value.trim() ? null : 'El nombre es requerido'),
       monto_alquiler: (value) => (value > 0 ? null : 'El monto debe ser mayor a 0'),
     },
   });
 
   const localEstados = useMemo(() => {
-    const map: Record<string, 'ocupado' | 'vacante'> = {};
+    const map: Record<number, 'ocupado' | 'vacante'> = {};
     for (const l of locales) {
       map[l.id] = appService.getLocalEstado(l.id);
     }
     return map;
   }, [locales, contratos]);
 
+  const doCreate = (values: LocalFormData, stayOpen: boolean) => {
+    try {
+      createLocal(values);
+      notifications.show({ title: 'Local creado', message: `El local ${values.nombre} ha sido creado correctamente.`, color: 'green', icon: <IconCheck size={18} /> });
+      form.reset();
+      if (stayOpen) {
+        setTimeout(() => firstFieldRef.current?.focus(), 0);
+      } else {
+        setModalOpened(false);
+      }
+    } catch (e: any) {
+      notifications.show({ title: 'Error', message: e.message, color: 'red' });
+    }
+  };
+
   const handleSubmit = (values: LocalFormData) => {
     if (editingLocal) {
       updateLocal({ ...values, activo: true });
-      notifications({
-        title: 'Local actualizado',
-        message: `El local ${values.nombre} ha sido actualizado.`,
-        color: 'green',
-      });
+      notifications.show({ title: 'Local actualizado', message: `El local ${values.nombre} ha sido actualizado.`, color: 'green' });
+      form.reset();
+      setModalOpened(false);
+      setEditingLocal(null);
     } else {
-      createLocal(values);
-      notifications({
-        title: 'Local creado',
-        message: `El local ${values.nombre} ha sido creado.`,
-        color: 'green',
-      });
+      doCreate(values, false);
     }
-    form.reset();
-    setModalOpened(false);
-    setEditingLocal(null);
   };
 
-  const handleEdit = (local: LocalFormData) => {
-    form.setValues(local);
+  const handleCreateAndAddAnother = () => {
+    const result = form.validate();
+    if (result.hasErrors) return;
+    doCreate(form.values, true);
+  };
+
+  const handleEdit = (local: typeof locales[0]) => {
+    form.setValues({ nombre: local.nombre, direccion: local.direccion || '', monto_alquiler: local.monto_alquiler, monto_condominio: local.monto_condominio, monto_luz: local.monto_luz });
     setEditingLocal(local);
     setModalOpened(true);
   };
 
-  const handleDelete = (id: string) => setDeletingLocalId(id);
+  const handleDelete = (id: number) => setDeletingLocalId(id);
 
   const confirmDelete = () => {
     if (deletingLocalId) {
       deleteLocal(deletingLocalId);
-      notifications({ title: 'Local eliminado', message: 'El local ha sido eliminado.', color: 'green' });
+      notifications.show({ title: 'Local eliminado', message: 'El local ha sido eliminado.', color: 'green' });
       setDeletingLocalId(null);
     }
   };
@@ -119,7 +129,7 @@ export function LocalesModule() {
           <tbody>
             {locales.map((local) => (
               <tr key={local.id}>
-                <td>{local.id}</td>
+                <td>#{local.id}</td>
                 <td>{local.nombre}</td>
                 <td>
                   <Badge color={localEstados[local.id] === 'ocupado' ? 'green' : 'gray'}>
@@ -146,15 +156,21 @@ export function LocalesModule() {
       <Modal opened={modalOpened} onClose={() => setModalOpened(false)} title={editingLocal ? 'Editar Local' : 'Crear Nuevo Local'}>
         <Box mx="auto">
           <form onSubmit={form.onSubmit(handleSubmit)}>
-            <TextInput label="ID del Local" placeholder="ID único del local" {...form.getInputProps('id')} disabled={!!editingLocal} />
-            <TextInput label="Nombre" placeholder="Nombre del local" {...form.getInputProps('nombre')} />
+            <TextInput label="Nombre" placeholder="Nombre del local" {...form.getInputProps('nombre')} ref={firstFieldRef} />
             <TextInput label="Dirección" placeholder="Dirección del local" {...form.getInputProps('direccion')} />
             <NumberInput label="Monto de Alquiler (USD)" placeholder="Monto de alquiler" decimalScale={2} {...form.getInputProps('monto_alquiler')} />
             <NumberInput label="Monto de Condominio (USD) - Opcional" placeholder="Monto de condominio" decimalScale={2} {...form.getInputProps('monto_condominio')} />
             <NumberInput label="Monto de Luz (USD) - Opcional" placeholder="Monto de luz" decimalScale={2} {...form.getInputProps('monto_luz')} />
             <Group justify="flex-end" mt="md">
               <Button variant="default" onClick={() => setModalOpened(false)}>Cancelar</Button>
-              <Button type="submit">{editingLocal ? 'Actualizar' : 'Crear'}</Button>
+              {editingLocal ? (
+                <Button type="submit">Guardar</Button>
+              ) : (
+                <>
+                  <Button type="submit">Crear</Button>
+                  <Button variant="outline" type="button" onClick={handleCreateAndAddAnother}>Crear y agregar otro</Button>
+                </>
+              )}
             </Group>
           </form>
         </Box>

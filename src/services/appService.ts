@@ -3,7 +3,7 @@ import { getDatabase } from './db';
 // ── Interfaces ──
 
 export interface Local {
-  id: string;
+  id: number;
   nombre: string;
   direccion?: string;
   monto_alquiler: number;
@@ -21,7 +21,7 @@ export interface Inquilino {
 
 export interface Contrato {
   id: number;
-  local_id: string;
+  local_id: number;
   inquilino_id: number;
   fecha_inicio: string;
   fecha_fin: string;
@@ -117,7 +117,7 @@ export function calcularMorosidad(
 
 // ── Locales ──
 
-function getLocalEstado(localId: string): 'ocupado' | 'vacante' {
+function getLocalEstado(localId: number): 'ocupado' | 'vacante' {
   const activos = select<any>(
     "SELECT id FROM contratos WHERE local_id = ? AND estado = 'activo' LIMIT 1",
     [localId]
@@ -137,16 +137,19 @@ export const appService = {
     return rows.map(r => ({ ...r, activo: r.activo === 1 }));
   },
 
-  getLocalEstado(localId: string): 'ocupado' | 'vacante' {
+  getLocalEstado(localId: number): 'ocupado' | 'vacante' {
     return getLocalEstado(localId);
   },
 
-  createLocal(local: Omit<Local, 'activo'>): void {
-    execute(
-      `INSERT INTO locales (id, nombre, direccion, monto_alquiler, monto_condominio, monto_luz, activo)
-       VALUES (?, ?, ?, ?, ?, ?, 1)`,
-      [local.id, local.nombre, local.direccion || null, local.monto_alquiler, local.monto_condominio || null, local.monto_luz || null]
+  createLocal(local: Omit<Local, 'id' | 'activo'>): number {
+    const db = getDatabase();
+    db.run(
+      `INSERT INTO locales (nombre, direccion, monto_alquiler, monto_condominio, monto_luz, activo)
+       VALUES (?, ?, ?, ?, ?, 1)`,
+      [local.nombre, local.direccion || null, local.monto_alquiler, local.monto_condominio || null, local.monto_luz || null]
     );
+    const result = db.exec('SELECT last_insert_rowid() AS id');
+    return result[0].values[0][0] as number;
   },
 
   updateLocal(local: Local): void {
@@ -156,7 +159,7 @@ export const appService = {
     );
   },
 
-  deleteLocal(id: string): void {
+  deleteLocal(id: number): void {
     execute('UPDATE locales SET activo = 0 WHERE id = ?', [id]);
   },
 
@@ -191,11 +194,11 @@ export const appService = {
     return select<Contrato>('SELECT * FROM contratos ORDER BY creado_en DESC');
   },
 
-  getContratosPorLocal(localId: string): Contrato[] {
+  getContratosPorLocal(localId: number): Contrato[] {
     return select<Contrato>('SELECT * FROM contratos WHERE local_id = ? ORDER BY creado_en DESC', [localId]);
   },
 
-  getContratoActivo(localId: string): Contrato | null {
+  getContratoActivo(localId: number): Contrato | null {
     const rows = select<Contrato>(
       "SELECT * FROM contratos WHERE local_id = ? AND estado = 'activo' LIMIT 1",
       [localId]
@@ -204,7 +207,7 @@ export const appService = {
   },
 
   createContrato(data: {
-    local_id: string;
+    local_id: number;
     inquilino_id: number;
     fecha_inicio: string;
     fecha_fin: string;
@@ -434,5 +437,155 @@ export const appService = {
 
   setConfig(clave: string, valor: string): void {
     execute('INSERT OR REPLACE INTO config (clave, valor) VALUES (?, ?)', [clave, valor]);
+  },
+
+  // ===== REPORTES =====
+
+  getReporteResumen(fechaInicio: string, fechaFin: string) {
+    const ingresos = select<any>(
+      `SELECT cuenta, COALESCE(SUM(monto_usd), 0) as total FROM pagos
+       WHERE fecha_pago >= ? AND fecha_pago <= ?
+       GROUP BY cuenta`,
+      [fechaInicio, fechaFin]
+    );
+    const juridica = ingresos.find((r: any) => r.cuenta === 'juridica')?.total || 0;
+    const personal = ingresos.find((r: any) => r.cuenta === 'personal')?.total || 0;
+
+    const egresosUsd = select<any>(
+      `SELECT COALESCE(SUM(monto), 0) as total FROM egresos
+       WHERE moneda = 'USD' AND fecha >= ? AND fecha <= ?`,
+      [fechaInicio, fechaFin]
+    )[0]?.total || 0;
+
+    const egresosBs = select<any>(
+      `SELECT COALESCE(SUM(monto), 0) as total FROM egresos
+       WHERE moneda = 'BS' AND fecha >= ? AND fecha <= ?`,
+      [fechaInicio, fechaFin]
+    )[0]?.total || 0;
+
+    return {
+      ingresos: { juridica, personal, total: juridica + personal },
+      egresos: { usd: egresosUsd, bs: egresosBs },
+    };
+  },
+
+  getMorosos() {
+    const cargos = this.getCargosMensuales();
+    const contratos = this.getContratos();
+    const localesMap = new Map(this.getLocales(false).map((l: any) => [l.id, l]));
+    const inquilinosMap = new Map(this.getAllInquilinos().map((i: any) => [i.id, i]));
+
+    const result: any[] = [];
+    for (const cargo of cargos) {
+      if (cargo.estado_morosidad !== 'atrasado') continue;
+      const contrato = contratos.find((c: any) => c.id === cargo.contrato_id);
+      if (!contrato || contrato.estado !== 'activo') continue;
+      const local = localesMap.get(contrato.local_id);
+      const inquilino = inquilinosMap.get(contrato.inquilino_id);
+      const saldo = Math.max(0, cargo.monto_total - cargo.monto_pagado);
+      const fechaLimite = new Date(cargo.anio, cargo.mes - 1, 5);
+      const hoy = new Date();
+      const diasAtraso = Math.max(0, Math.floor((hoy.getTime() - fechaLimite.getTime()) / (1000 * 60 * 60 * 24)));
+      result.push({
+        cargo_id: cargo.id,
+        local_nombre: local?.nombre ?? `#${contrato.local_id}`,
+        inquilino_nombre: inquilino?.nombre ?? `#${contrato.inquilino_id}`,
+        anio: cargo.anio,
+        mes: cargo.mes,
+        monto_total: cargo.monto_total,
+        monto_pagado: cargo.monto_pagado,
+        saldo_pendiente: saldo,
+        dias_atraso: diasAtraso,
+      });
+    }
+    return result;
+  },
+
+  getFichaLocal(localId: number) {
+    const locales = this.getLocales(false);
+    const local = locales.find((l: any) => l.id === localId);
+    if (!local) return null;
+
+    const contratos = this.getContratosPorLocal(localId);
+    const inquilinosMap = new Map(this.getAllInquilinos().map((i: any) => [i.id, i]));
+
+    const contratoActivo = contratos.find((c: any) => c.estado === 'activo') || null;
+    const historicos = contratos.filter((c: any) => c.estado !== 'activo');
+
+    const buildContratoInfo = (contrato: any) => {
+      if (!contrato) return null;
+      const cargos = this.getCargosPorContrato(contrato.id);
+      const cargoIds = cargos.map((c: any) => c.id);
+      const pagos = cargoIds.length > 0
+        ? select<any>(
+            `SELECT * FROM pagos WHERE cargo_mensual_id IN (${cargoIds.map(() => '?').join(',')}) ORDER BY fecha_pago DESC`,
+            cargoIds
+          )
+        : [];
+      const inquilino = inquilinosMap.get(contrato.inquilino_id) || null;
+      return { contrato, inquilino, cargos, pagos };
+    };
+
+    return {
+      local: { ...local, estado: getLocalEstado(localId) },
+      contratoActivo: buildContratoInfo(contratoActivo),
+      historicos: historicos.map(buildContratoInfo).filter(Boolean),
+    };
+  },
+
+  getOcupacion() {
+    const locales = this.getLocales(false);
+    const activos = locales.filter((l: any) => l.activo);
+    let ocupados = 0;
+    const vacantes: any[] = [];
+    for (const l of activos) {
+      if (getLocalEstado(l.id) === 'ocupado') {
+        ocupados++;
+      } else {
+        vacantes.push(l);
+      }
+    }
+    return {
+      total: activos.length,
+      ocupados,
+      vacantes: activos.length - ocupados,
+      porcentaje: activos.length > 0 ? Math.round((ocupados / activos.length) * 100) : 0,
+      listaVacantes: vacantes,
+    };
+  },
+
+  getProximosVencimientos() {
+    const hoy = new Date();
+    const y = hoy.getFullYear();
+    const m = String(hoy.getMonth() + 1).padStart(2, '0');
+    const d = String(hoy.getDate()).padStart(2, '0');
+    const fechaHoy = `${y}-${m}-${d}`;
+
+    const dentro60 = new Date(hoy.getTime() + 60 * 24 * 60 * 60 * 1000);
+    const y2 = dentro60.getFullYear();
+    const m2 = String(dentro60.getMonth() + 1).padStart(2, '0');
+    const d2 = String(dentro60.getDate()).padStart(2, '0');
+    const fechaFin = `${y2}-${m2}-${d2}`;
+
+    const contratos = select<any>(
+      `SELECT c.* FROM contratos c WHERE c.estado = 'activo' AND c.fecha_fin >= ? AND c.fecha_fin <= ? ORDER BY c.fecha_fin ASC`,
+      [fechaHoy, fechaFin]
+    );
+
+    const localesMap = new Map(this.getLocales(false).map((l: any) => [l.id, l]));
+    const inquilinosMap = new Map(this.getAllInquilinos().map((i: any) => [i.id, i]));
+
+    return contratos.map((c: any) => {
+      const [cy, cm] = c.fecha_fin.split('-').map(Number);
+      const finDate = new Date(cy, cm - 1);
+      const dias = Math.max(0, Math.ceil((finDate.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)));
+      return {
+        contrato_id: c.id,
+        local_nombre: localesMap.get(c.local_id)?.nombre ?? `#${c.local_id}`,
+        inquilino_nombre: inquilinosMap.get(c.inquilino_id)?.nombre ?? `#${c.inquilino_id}`,
+        fecha_fin: c.fecha_fin,
+        dias_restantes: dias,
+      };
+    });
   },
 };

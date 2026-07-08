@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   TextInput,
   Button,
@@ -11,7 +11,7 @@ import {
   Box,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconTrash, IconPlus, IconPencil } from '@tabler/icons-react';
+import { IconTrash, IconPlus, IconPencil, IconCheck } from '@tabler/icons-react';
 import { useAppStore } from '../../store/store';
 import { notifications } from '@mantine/notifications';
 
@@ -25,6 +25,7 @@ export function InquilinosModule() {
 
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null);
   const [editingInquilino, setEditingInquilino] = useState<{ id: number; nombre: string; cedula: string } | null>(null);
+  const firstFieldRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<InquilinoFormData>({
     initialValues: { nombre: '', cedula: '' },
@@ -33,17 +34,33 @@ export function InquilinosModule() {
     },
   });
 
+  const doCreate = (values: InquilinoFormData, stayOpen: boolean) => {
+    createInquilino(values.nombre, values.cedula || undefined);
+    notifications.show({ title: 'Inquilino creado', message: `El inquilino ${values.nombre} ha sido creado correctamente.`, color: 'green', icon: <IconCheck size={18} /> });
+    form.reset();
+    if (stayOpen) {
+      setTimeout(() => firstFieldRef.current?.focus(), 0);
+    } else {
+      setModalMode(null);
+    }
+  };
+
   const handleSubmit = (values: InquilinoFormData) => {
     if (modalMode === 'edit' && editingInquilino) {
       updateInquilino(editingInquilino.id, values.nombre, values.cedula || undefined);
-      notifications({ title: 'Inquilino actualizado', message: `El inquilino ${values.nombre} ha sido actualizado.`, color: 'green' });
+      notifications.show({ title: 'Inquilino actualizado', message: `El inquilino ${values.nombre} ha sido actualizado.`, color: 'green' });
+      form.reset();
+      setModalMode(null);
+      setEditingInquilino(null);
     } else {
-      createInquilino(values.nombre, values.cedula || undefined);
-      notifications({ title: 'Inquilino creado', message: `El inquilino ${values.nombre} ha sido creado.`, color: 'green' });
+      doCreate(values, false);
     }
-    form.reset();
-    setModalMode(null);
-    setEditingInquilino(null);
+  };
+
+  const handleCreateAndAddAnother = () => {
+    const result = form.validate();
+    if (result.hasErrors) return;
+    doCreate(form.values, true);
   };
 
   const handleEdit = (inquilino: typeof inquilinos[0]) => {
@@ -54,7 +71,7 @@ export function InquilinosModule() {
 
   const handleDelete = (id: number) => {
     deleteInquilino(id);
-    notifications({ title: 'Inquilino eliminado', message: 'El inquilino ha sido eliminado.', color: 'green' });
+    notifications.show({ title: 'Inquilino eliminado', message: 'El inquilino ha sido eliminado.', color: 'green' });
   };
 
   return (
@@ -109,11 +126,18 @@ export function InquilinosModule() {
         title={modalMode === 'edit' ? 'Editar Inquilino' : 'Crear Nuevo Inquilino'}>
         <Box mx="auto">
           <form onSubmit={form.onSubmit(handleSubmit)}>
-            <TextInput label="Nombre del Inquilino" placeholder="Nombre completo" withAsterisk mb="md" {...form.getInputProps('nombre')} />
+            <TextInput label="Nombre del Inquilino" placeholder="Nombre completo" withAsterisk mb="md" {...form.getInputProps('nombre')} ref={firstFieldRef} />
             <TextInput label="Cédula (opcional)" placeholder="Cédula de identidad" mb="md" {...form.getInputProps('cedula')} />
             <Group justify="flex-end" mt="md">
               <Button variant="default" onClick={() => { setModalMode(null); setEditingInquilino(null); form.reset(); }}>Cancelar</Button>
-              <Button type="submit">{modalMode === 'edit' ? 'Actualizar' : 'Crear'}</Button>
+              {modalMode === 'edit' ? (
+                <Button type="submit">Guardar</Button>
+              ) : (
+                <>
+                  <Button type="submit">Crear</Button>
+                  <Button variant="outline" type="button" onClick={handleCreateAndAddAnother}>Crear y agregar otro</Button>
+                </>
+              )}
             </Group>
           </form>
         </Box>

@@ -23,7 +23,7 @@
 ## 3. Modelo de Datos (SQLite)
 
 ### Tabla: locales
-- id (PK, texto — código propio del local)
+- id (PK, INTEGER AUTOINCREMENT — generado automáticamente, mostrado como `#ID` en UI)
 - nombre
 - direccion (opcional)
 - estado (ocupado / vacante) — **calculado automáticamente**: ocupado si tiene un contrato activo, vacante si no. No editable manualmente, se muestra como informativo.
@@ -43,7 +43,7 @@
 
 ### Tabla: contratos
 - id (PK)
-- local_id (FK → locales)
+- local_id (FK → locales, INTEGER)
 - inquilino_id (FK → inquilinos)
 - fecha_inicio (mes/año)
 - fecha_fin (mes/año, obligatoria)
@@ -139,7 +139,7 @@
 
 ### 5.1 Locales
 - Crear / editar / desactivar local.
-- Campos: código (ID), nombre, dirección, estado (informativo, automático), monto alquiler base, condominio base (opcional), luz base (opcional).
+- Campos: nombre, dirección, estado (informativo, automático), monto alquiler base, condominio base (opcional), luz base (opcional). ID auto-generado.
 - Listado con filtro por estado.
 
 ### 5.2 Inquilinos
@@ -194,6 +194,43 @@
 6. **Egresos**: formulario + listado/filtro por fecha.
 7. **Reportes**: selector de rango de fechas + resumen financiero + lista de morosos.
 8. Navegación por tabs (sin router).
+
+## 7bis. Estándar UI/UX — Formularios de Creación
+
+Aplica de forma **consistente** a los 4 formularios de creación: Locales, Inquilinos, Contratos, Pagos.
+
+### Patrón: botón dual "Crear" / "Crear y agregar otro"
+
+- El footer del modal tiene **dos botones**:
+  - **"Crear"**: guarda el registro y **cierra** el modal.
+  - **"Crear y agregar otro"**: guarda el registro, **limpia el formulario**, **mantiene el modal abierto**, foco automático en el primer campo.
+- En **ambos** casos: mostrar notificación de éxito (`@mantine/notifications`, ícono check, ej. "Local creado correctamente") — 3-4 segundos.
+- Este patrón resuelve la ambigüedad reportada: el usuario decide explícitamente si sigue cargando datos o termina, sin adivinar si el clic funcionó o si el modal se va a cerrar solo.
+- Aplica solo a **creación**. En **edición** de un registro existente: un solo botón "Guardar", que guarda y cierra el modal (no aplica "guardar y agregar otro").
+
+### Caso especial: Pagos
+
+- Tras cualquiera de los dos botones (Crear / Crear y agregar otro), **limpiar el formulario completo**, incluyendo selección de local/contrato/cargo y montos.
+- Excepción: **no** limpiar el formulario si el pago fue **rechazado** por validación (ej. sobrepago) — mantener los valores para que el usuario corrija.
+
+### Fecha inicio/fin en Contratos
+
+- Usar `MonthPickerInput` (`@mantine/dates`) para fecha_inicio y fecha_fin — selección de mes/año únicamente, sin días (coincide con el modelo `anio`/`mes`).
+- Validación: fecha_fin no puede ser anterior a fecha_inicio.
+
+### Pagos — inputs USD y Bs con cálculo bidireccional
+
+- Dos `NumberInput` editables: **Monto (USD)** y **Monto (Bs)**, más el input de **Tasa de cambio** (pre-cargado con la última tasa guardada en `config`).
+- Si el usuario edita USD → recalcular Bs = USD × tasa.
+- Si el usuario edita Bs → recalcular USD = Bs / tasa.
+- Si el usuario edita la tasa después de haber llenado un monto → recalcular el campo que **no fue el último editado manualmente** por el usuario (evitar sobreescribir el valor que el usuario acaba de fijar a propósito).
+- El modelo de datos **no cambia**: se sigue guardando `monto_bs`, `tasa_cambio`, y `monto_usd` (usado en todos los cálculos/validaciones internas, incluyendo el chequeo de no-sobrepago). Los dos inputs son solo una conveniencia de entrada de datos en la UI.
+
+### Pagos — flujo de selección y preselección de cargo
+
+- Flujo de selección: **1) Local/Contrato → 2) Cargo (mes)**.
+- Al seleccionar el contrato, el sistema preselecciona automáticamente el cargo cuyo mes/año coincide con la **fecha actual del pago**, **solo si** ese cargo existe y tiene saldo pendiente.
+- Si no hay cargo del mes actual con saldo pendiente (ya pagado completo, o el contrato no cubre el mes actual), no preseleccionar — el usuario elige manualmente entre los cargos con saldo pendiente del contrato.
 
 ## 8. Fuera de Alcance (explícito)
 

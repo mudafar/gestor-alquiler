@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   TextInput,
   NumberInput,
@@ -15,15 +15,16 @@ import {
   Textarea,
   Alert,
 } from '@mantine/core';
+import { MonthPickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import { IconX, IconPlus } from '@tabler/icons-react';
+import { IconX, IconPlus, IconCheck } from '@tabler/icons-react';
 import { useAppStore } from '../../store/store';
 import { appService } from '../../services/appService';
 import { notifications } from '@mantine/notifications';
 import dayjs from 'dayjs';
 
 interface ContratoFormData {
-  local_id: string;
+  local_id: number | null;
   inquilino_id: string;
   fecha_inicio: string;
   fecha_fin: string;
@@ -37,6 +38,7 @@ export function ContratosModule() {
   const { locales, inquilinos, contratos, createContrato, cancelContrato } = useAppStore();
   const [modalOpened, setModalOpened] = useState(false);
   const [cancelId, setCancelId] = useState<number | null>(null);
+  const firstFieldRef = useRef<HTMLInputElement>(null);
 
   const localesDisponibles = useMemo(
     () => locales.filter((l) => !contratos.some((c) => c.local_id === l.id && c.estado === 'activo')),
@@ -45,7 +47,7 @@ export function ContratosModule() {
 
   const form = useForm<ContratoFormData>({
     initialValues: {
-      local_id: '',
+      local_id: null,
       inquilino_id: '',
       fecha_inicio: dayjs().format('YYYY-MM'),
       fecha_fin: dayjs().add(1, 'year').format('YYYY-MM'),
@@ -58,18 +60,22 @@ export function ContratosModule() {
       local_id: (v) => (v ? null : 'Selecciona un local'),
       inquilino_id: (v) => (v ? null : 'Selecciona un inquilino'),
       fecha_inicio: (v) => (v ? null : 'La fecha de inicio es requerida'),
-      fecha_fin: (v) => (v ? null : 'La fecha de fin es requerida'),
+      fecha_fin: (v, values) => {
+        if (!v) return 'La fecha de fin es requerida';
+        if (v < values.fecha_inicio) return 'La fecha de fin no puede ser anterior a la fecha de inicio';
+        return null;
+      },
       monto_alquiler: (v) => (v > 0 ? null : 'El monto debe ser mayor a 0'),
     },
   });
 
   const selectedLocal = locales.find((l) => l.id === form.values.local_id);
 
-  const handleLocalChange = (localId: string) => {
+  const handleLocalChange = (localId: number | null) => {
     const local = locales.find((l) => l.id === localId);
     if (local) {
       form.setValues({
-        local_id: localId,
+        local_id: Number(localId),
         monto_alquiler: local.monto_alquiler,
         monto_condominio: local.monto_condominio,
         monto_luz: local.monto_luz,
@@ -79,10 +85,10 @@ export function ContratosModule() {
     }
   };
 
-  const handleSubmit = (values: ContratoFormData) => {
+  const doCreate = (values: ContratoFormData, stayOpen: boolean) => {
     try {
       createContrato({
-        local_id: values.local_id,
+        local_id: Number(values.local_id),
         inquilino_id: parseInt(values.inquilino_id, 10),
         fecha_inicio: values.fecha_inicio,
         fecha_fin: values.fecha_fin,
@@ -91,22 +97,45 @@ export function ContratosModule() {
         monto_luz: values.monto_luz,
         observaciones: values.observaciones,
       });
-      notifications({ title: 'Contrato creado', message: 'El contrato se ha creado y los cargos mensuales han sido generados.', color: 'green' });
-      form.reset();
-      setModalOpened(false);
+      notifications.show({ title: 'Contrato creado', message: 'El contrato se ha creado y los cargos mensuales han sido generados.', color: 'green', icon: <IconCheck size={18} /> });
+      form.setValues({
+        local_id: null as any,
+        inquilino_id: null as any,
+        fecha_inicio: dayjs().format('YYYY-MM'),
+        fecha_fin: dayjs().add(1, 'year').format('YYYY-MM'),
+        monto_alquiler: 0,
+        monto_condominio: null,
+        monto_luz: null,
+        observaciones: '',
+      });
+      if (stayOpen) {
+        setTimeout(() => firstFieldRef.current?.focus(), 0);
+      } else {
+        setModalOpened(false);
+      }
     } catch (e: any) {
-      notifications({ title: 'Error', message: e.message, color: 'red' });
+      notifications.show({ title: 'Error', message: e.message, color: 'red' });
     }
+  };
+
+  const handleSubmit = (values: ContratoFormData) => {
+    doCreate(values, false);
+  };
+
+  const handleCreateAndAddAnother = () => {
+    const result = form.validate();
+    if (result.hasErrors) return;
+    doCreate(form.values, true);
   };
 
   const handleCancel = () => {
     if (cancelId == null) return;
     try {
       cancelContrato(cancelId);
-      notifications({ title: 'Contrato cancelado', message: 'El contrato ha sido cancelado exitosamente.', color: 'orange' });
+      notifications.show({ title: 'Contrato cancelado', message: 'El contrato ha sido cancelado exitosamente.', color: 'orange' });
       setCancelId(null);
     } catch (e: any) {
-      notifications({ title: 'Error', message: e.message, color: 'red' });
+      notifications.show({ title: 'Error', message: e.message, color: 'red' });
     }
   };
 
@@ -192,6 +221,7 @@ export function ContratosModule() {
               searchable
               {...form.getInputProps('local_id')}
               onChange={handleLocalChange}
+              ref={firstFieldRef}
             />
             <Select
               label="Inquilino"
@@ -200,8 +230,8 @@ export function ContratosModule() {
               searchable
               {...form.getInputProps('inquilino_id')}
             />
-            <TextInput label="Fecha de Inicio (mes/año)" placeholder="YYYY-MM" {...form.getInputProps('fecha_inicio')} />
-            <TextInput label="Fecha de Fin (mes/año)" placeholder="YYYY-MM" {...form.getInputProps('fecha_fin')} />
+            <MonthPickerInput label="Fecha de Inicio" placeholder="Seleccionar mes/año" valueFormat="YYYY-MM" {...form.getInputProps('fecha_inicio')} />
+            <MonthPickerInput label="Fecha de Fin" placeholder="Seleccionar mes/año" valueFormat="YYYY-MM" {...form.getInputProps('fecha_fin')} />
             {selectedLocal && (
               <Text size="sm" c="dimmed" mb="sm">
                 Montos base del local: Alquiler ${selectedLocal.monto_alquiler.toFixed(2)}
@@ -214,10 +244,9 @@ export function ContratosModule() {
             <NumberInput label="Monto Luz (USD) - Opcional" placeholder="Monto de luz" decimalScale={2} {...form.getInputProps('monto_luz')} />
             <Textarea label="Observaciones" placeholder="Observaciones (opcional)" {...form.getInputProps('observaciones')} />
             <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={() => setModalOpened(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit">Crear Contrato</Button>
+              <Button variant="default" onClick={() => setModalOpened(false)}>Cancelar</Button>
+              <Button type="submit">Crear</Button>
+              <Button variant="outline" type="button" onClick={handleCreateAndAddAnother}>Crear y agregar otro</Button>
             </Group>
           </form>
         </Box>

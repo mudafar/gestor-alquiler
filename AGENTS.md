@@ -3,16 +3,6 @@
 ## Project Overview
 Single-user rental management system for commercial properties. 100% Spanish UI. No backend, no auth, no network — must work fully offline. Runs as a Vite SPA with SQLite (sql.js, loaded locally, not from CDN) auto-persisted to IndexedDB. Manual export/import for backup.
 
-## ⚠️ Pending Refactor (not yet implemented)
-The data model and several modules described below reflect the **target** state, not necessarily current code. Key structural changes still to implement:
-- New `contratos` table replacing direct `inquilinos.local_id` assignment.
-- `cargos_mensuales` now generated per-contrato (not per-local/month standalone) and now references `contrato_id` instead of `local_id`.
-- `pagos` now stores BS + tasa_cambio + calculated USD, no currency selector.
-- New `config` table for last exchange rate.
-- `inquilinos`: add `cedula`, remove `telefono` and `local_id`.
-- sql.js must load from local bundle/assets, not CDN — required for offline use.
-- Existing data can be discarded — no migration needed.
-
 Full spec: [`plan-sistema-alquileres.md`](./plan-sistema-alquileres.md).
 
 ## Commands
@@ -69,6 +59,11 @@ src/
 - **Last exchange rate**: read/write from `config` table (key `ultima_tasa_cambio`), used to pre-fill the pagos form.
 - **ActionIcons** have `title` attributes for accessibility and testability
 - **sql.js loads from local assets** — do not reintroduce CDN loading; wasm file must be bundled/served locally for offline support
+- **Creation forms (Locales, Inquilinos, Contratos, Pagos)**: dual-button footer — **"Crear"** (save + close modal) and **"Crear y agregar otro"** (save + `form.reset()` + keep modal open + focus first field). Both trigger a success notification. Edit forms keep a single "Guardar" button (save + close), no "add another" option.
+- **Pagos form**: both buttons fully reset the form (including selected local/contrato/cargo) after a successful save — except on validation failure (e.g. overpayment), where the form must keep its values so the user can correct them.
+- **Contratos date inputs**: use Mantine's `MonthPickerInput` (`@mantine/dates`) for fecha_inicio/fecha_fin — month/year only, matches the `anio`/`mes` data model. Validate fecha_fin ≥ fecha_inicio.
+- **Pagos amount inputs**: two editable `NumberInput` fields — Monto (USD) and Monto (Bs) — plus tasa de cambio (pre-filled from `config.ultima_tasa_cambio`). Editing USD recalculates Bs (USD × tasa); editing Bs recalculates USD (Bs / tasa); editing tasa recalculates whichever amount field was **not** the last one manually edited. Data model unchanged — `monto_bs`, `tasa_cambio`, `monto_usd` are still what's persisted; the dual input is a UI convenience only.
+- **Pagos selection flow**: local/contrato selected first, then cargo (mes). On contrato selection, auto-preselect the cargo matching the current date's mes/año **only if** it exists and has a remaining balance; otherwise leave selection to the user.
 
 ## Data Model
 See full schema in [`plan-sistema-alquileres.md`](./plan-sistema-alquileres.md#3-modelo-de-datos-sqlite).
@@ -98,17 +93,19 @@ See [`plan-sistema-alquileres.md`](./plan-sistema-alquileres.md#4-reglas-de-nego
 ## Module Status
 | Module | Status | Notes |
 |---|---|---|
-| Locales | ⚠️ Needs update | Existing CRUD works; `estado` field must change from manual to auto-computed from active contrato |
-| Inquilinos | ⚠️ Needs update | Remove `telefono` + `local_id`/assignment logic; add `cedula` (optional, unique) |
-| Contratos | 🆕 Not implemented | New module — create/cancel, generates cargos_mensuales, validates one-active-per-local |
-| Egresos | ✅ Complete | Full CRUD with confirmation modal |
-| Cargos | ⚠️ Needs rework | Must reference `contrato_id` not `local_id`; `monto_pagado`/`estado_morosidad` must become computed, not stored; no manual generation (comes from contrato creation) |
-| Pagos | ⚠️ Needs rework | Add BS + tasa_cambio input, auto-calc USD, remove currency selector, add overpayment validation, cuenta now mandatory |
+| Module | Status | Notes |
+|---|---|---|
+| Locales | ✅ Complete | CRUD (nombre, dirección, montos). `estado` badge auto-computed from active contrato. `id` is INTEGER AUTOINCREMENT (hidden from user). |
+| Inquilinos | ✅ Complete | CRUD (nombre, cédula). Sin `telefono`/`local_id`. Sin asignación directa a locales. |
+| Contratos | ✅ Complete | Crear/cancelar. Genera cargos_mensuales automáticos. Valida 1 activo por local. |
+| Egresos | ✅ Complete | Full CRUD with confirmation modal. |
+| Cargos | ✅ Complete | Read-only view per contrato. `monto_pagado`/`estado_morosidad` computed from pagos. |
+| Pagos | ✅ Complete | BS + tasa_cambio → USD. Dual USD/BS inputs. Overpayment validation. Cuenta mandatory. Auto-preselect cargo. |
 | Reportes | ⚠️ Needs update | Must reflect new contrato-based joins; ficha por local must show active contrato + historical contratos list |
 
-## Known Build Errors (pre-existing)
-- `db.ts`: `SqlJs` type not resolved (missing import)
-- sql.js currently loads from CDN (`https://sql.js.org/dist/sql-wasm.js`) — must switch to local bundle for offline requirement
+## Known Issues
+- `db.ts`: `SqlJs` type not resolved (minor TS warning, non-blocking)
+- `npm run dev` optimizer may hang on cold start — use `npm run build && npm run preview` as workaround
 
 ## Testing
 - E2E tests in `tests/` using Playwright
