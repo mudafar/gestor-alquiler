@@ -1,0 +1,77 @@
+- generic [ref=f2e1]:
+  - generic [ref=f2e4]:
+    - banner [ref=f2e5]:
+      - generic [ref=f2e6]:
+        - button [ref=f2e7] [cursor=pointer]
+        - heading "Sistema de Gestión de Alquileres" [level=4] [ref=f2e9]
+        - generic [ref=f2e10]:
+          - button "Abrir DB" [ref=f2e11] [cursor=pointer]:
+            - generic [ref=f2e12]:
+              - img [ref=f2e14]
+              - generic [ref=f2e19]: Abrir DB
+          - button "Guardar DB" [disabled] [ref=f2e20]:
+            - generic [ref=f2e21]:
+              - img [ref=f2e23]
+              - generic [ref=f2e28]: Guardar DB
+    - navigation [ref=f2e29]:
+      - paragraph [ref=f2e30]: Menú Principal
+      - button "Inicio" [ref=f2e31] [cursor=pointer]:
+        - generic [ref=f2e32]:
+          - img [ref=f2e34]
+          - generic [ref=f2e38]: Inicio
+      - button "Locales" [active] [ref=f2e39] [cursor=pointer]:
+        - generic [ref=f2e40]:
+          - img [ref=f2e42]
+          - generic [ref=f2e44]: Locales
+      - button "Inquilinos" [ref=f2e45] [cursor=pointer]:
+        - generic [ref=f2e46]:
+          - img [ref=f2e48]
+          - generic [ref=f2e51]: Inquilinos
+      - button "Pagos" [ref=f2e52] [cursor=pointer]:
+        - generic [ref=f2e53]:
+          - img [ref=f2e55]
+          - generic [ref=f2e57]: Pagos
+      - button "Cargos" [ref=f2e58] [cursor=pointer]:
+        - generic [ref=f2e59]:
+          - img [ref=f2e61]
+          - generic [ref=f2e64]: Cargos
+      - button "Egresos" [ref=f2e65] [cursor=pointer]:
+        - generic [ref=f2e66]:
+          - img [ref=f2e68]
+          - generic [ref=f2e71]: Egresos
+      - button "Reportes" [ref=f2e72] [cursor=pointer]:
+        - generic [ref=f2e73]:
+          - img [ref=f2e75]
+          - generic [ref=f2e78]: Reportes
+    - main [ref=f2e79]:
+      - generic [ref=f2e80]:
+        - generic [ref=f2e81]:
+          - paragraph [ref=f2e82]: Gestión de Locales
+          - button "Nuevo Local" [ref=f2e83] [cursor=pointer]:
+            - generic [ref=f2e84]:
+              - img [ref=f2e86]
+              - generic [ref=f2e87]: Nuevo Local
+        - generic [ref=f2e88]:
+          - paragraph [ref=f2e89]: Lista de Locales
+          - table [ref=f2e90]:
+            - rowgroup [ref=f2e91]:
+              - row "ID Nombre Estado Monto Alquiler Acciones" [ref=f2e92]:
+                - columnheader "ID" [ref=f2e93]
+                - columnheader "Nombre" [ref=f2e94]
+                - columnheader "Estado" [ref=f2e95]
+                - columnheader "Monto Alquiler" [ref=f2e96]
+                - columnheader "Acciones" [ref=f2e97]
+            - rowgroup
+  - generic [ref=f2e99]:
+    - alert [ref=f2e100]:
+      - generic [ref=f2e101]:
+        - generic [ref=f2e102]: Base de datos lista
+        - generic [ref=f2e103]: La base de datos se ha inicializado correctamente.
+      - button [ref=f2e104] [cursor=pointer]:
+        - img [ref=f2e105]
+    - alert [ref=f2e107]:
+      - generic [ref=f2e108]:
+        - generic [ref=f2e109]: Base de datos lista
+        - generic [ref=f2e110]: La base de datos se ha inicializado correctamente.
+      - button [ref=f2e111] [cursor=pointer]:
+        - img [ref=f2e112]

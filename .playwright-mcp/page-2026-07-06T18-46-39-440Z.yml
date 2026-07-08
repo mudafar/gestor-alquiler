@@ -1,0 +1,89 @@
+- generic [ref=e4]:
+  - banner [ref=e5]:
+    - generic [ref=e6]:
+      - button [ref=e7] [cursor=pointer]
+      - heading "Sistema de Gestión de Alquileres" [level=4] [ref=e9]
+      - generic [ref=e10]:
+        - button "Importar DB" [ref=e11] [cursor=pointer]:
+          - generic [ref=e12]:
+            - img [ref=e14]
+            - generic [ref=e19]: Importar DB
+        - button "Exportar DB" [ref=e20] [cursor=pointer]:
+          - generic [ref=e21]:
+            - img [ref=e23]
+            - generic [ref=e28]: Exportar DB
+        - button "Limpiar DB" [ref=e29] [cursor=pointer]:
+          - generic [ref=e30]:
+            - img [ref=e32]
+            - generic [ref=e35]: Limpiar DB
+  - navigation [ref=e36]:
+    - paragraph [ref=e37]: Menú Principal
+    - button "Inicio" [ref=e38] [cursor=pointer]:
+      - generic [ref=e39]:
+        - img [ref=e41]
+        - generic [ref=e45]: Inicio
+    - button "Locales" [ref=e46] [cursor=pointer]:
+      - generic [ref=e47]:
+        - img [ref=e49]
+        - generic [ref=e51]: Locales
+    - button "Inquilinos" [ref=e52] [cursor=pointer]:
+      - generic [ref=e53]:
+        - img [ref=e55]
+        - generic [ref=e58]: Inquilinos
+    - button "Pagos" [ref=e59] [cursor=pointer]:
+      - generic [ref=e60]:
+        - img [ref=e62]
+        - generic [ref=e64]: Pagos
+    - button "Cargos" [active] [ref=e65] [cursor=pointer]:
+      - generic [ref=e66]:
+        - img [ref=e68]
+        - generic [ref=e71]: Cargos
+    - button "Egresos" [ref=e72] [cursor=pointer]:
+      - generic [ref=e73]:
+        - img [ref=e75]
+        - generic [ref=e78]: Egresos
+    - button "Reportes" [ref=e79] [cursor=pointer]:
+      - generic [ref=e80]:
+        - img [ref=e82]
+        - generic [ref=e85]: Reportes
+  - main [ref=e86]:
+    - generic [ref=e196]:
+      - paragraph [ref=e198]: Gestión de Cargos Mensuales
+      - generic [ref=e199]:
+        - paragraph [ref=e200]: Generar Cargos
+        - generic [ref=e201]:
+          - generic [ref=e202]:
+            - generic [ref=e203]: Año
+            - generic [ref=e204]:
+              - combobox "Año" [ref=e205] [cursor=pointer]: "2026"
+              - generic:
+                - img
+          - generic [ref=e206]:
+            - generic [ref=e207]: Mes
+            - generic [ref=e208]:
+              - combobox "Mes" [ref=e209] [cursor=pointer]: Julio
+              - generic:
+                - img
+          - generic [ref=e210]:
+            - generic [ref=e211]: Local (Opcional)
+            - generic [ref=e212]:
+              - combobox "Local (Opcional)" [ref=e213] [cursor=pointer]
+              - generic:
+                - img
+        - generic [ref=e214]:
+          - button "Generar Cargo para Local Seleccionado" [ref=e215] [cursor=pointer]:
+            - generic [ref=e217]: Generar Cargo para Local Seleccionado
+          - button "Generar Cargos para Todos los Locales" [ref=e218] [cursor=pointer]:
+            - generic [ref=e220]: Generar Cargos para Todos los Locales
+      - generic [ref=e221]:
+        - paragraph [ref=e222]: Cargos Mensuales
+        - table [ref=e223]:
+          - rowgroup [ref=e224]:
+            - row "Local Año Mes Monto Total Monto Pagado Estado" [ref=e225]:
+              - columnheader "Local" [ref=e226]
+              - columnheader "Año" [ref=e227]
+              - columnheader "Mes" [ref=e228]
+              - columnheader "Monto Total" [ref=e229]
+              - columnheader "Monto Pagado" [ref=e230]
+              - columnheader "Estado" [ref=e231]
+          - rowgroup

@@ -1,0 +1,105 @@
+- generic [ref=e1]:
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e6]:
+        - button [ref=e7] [cursor=pointer]
+        - heading "Sistema de Gestión de Alquileres" [level=4] [ref=e9]
+        - generic [ref=e10]:
+          - img "Cambios sin guardar" [ref=e178]
+          - button "Abrir DB" [ref=e11] [cursor=pointer]:
+            - generic [ref=e12]:
+              - img [ref=e14]
+              - generic [ref=e19]: Abrir DB
+          - button "Guardar DB" [ref=e20] [cursor=pointer]:
+            - generic [ref=e21]:
+              - img [ref=e23]
+              - generic [ref=e28]: Guardar DB
+    - navigation [ref=e29]:
+      - paragraph [ref=e30]: Menú Principal
+      - button "Inicio" [ref=e31] [cursor=pointer]:
+        - generic [ref=e32]:
+          - img [ref=e34]
+          - generic [ref=e38]: Inicio
+      - button "Locales" [ref=e39] [cursor=pointer]:
+        - generic [ref=e40]:
+          - img [ref=e42]
+          - generic [ref=e44]: Locales
+      - button "Inquilinos" [ref=e45] [cursor=pointer]:
+        - generic [ref=e46]:
+          - img [ref=e48]
+          - generic [ref=e51]: Inquilinos
+      - button "Pagos" [ref=e52] [cursor=pointer]:
+        - generic [ref=e53]:
+          - img [ref=e55]
+          - generic [ref=e57]: Pagos
+      - button "Cargos" [ref=e58] [cursor=pointer]:
+        - generic [ref=e59]:
+          - img [ref=e61]
+          - generic [ref=e64]: Cargos
+      - button "Egresos" [ref=e65] [cursor=pointer]:
+        - generic [ref=e66]:
+          - img [ref=e68]
+          - generic [ref=e71]: Egresos
+      - button "Reportes" [ref=e72] [cursor=pointer]:
+        - generic [ref=e73]:
+          - img [ref=e75]
+          - generic [ref=e78]: Reportes
+    - main [ref=e79]:
+      - generic [ref=e205]:
+        - generic [ref=e206]:
+          - paragraph [ref=e207]: Gestión de Inquilinos
+          - generic [ref=e208]:
+            - button "Nuevo Inquilino" [ref=e209] [cursor=pointer]:
+              - generic [ref=e210]:
+                - img [ref=e212]
+                - generic [ref=e213]: Nuevo Inquilino
+            - button "Asignar a Local" [ref=e214] [cursor=pointer]:
+              - generic [ref=e215]:
+                - img [ref=e217]
+                - generic [ref=e218]: Asignar a Local
+        - generic [ref=e219]:
+          - paragraph [ref=e220]: Inquilinos
+          - table [ref=e221]:
+            - rowgroup [ref=e222]:
+              - row "Nombre Teléfono Local Asignado Estado Acciones" [ref=e223]:
+                - columnheader "Nombre" [ref=e224]
+                - columnheader "Teléfono" [ref=e225]
+                - columnheader "Local Asignado" [ref=e226]
+                - columnheader "Estado" [ref=e227]
+                - columnheader "Acciones" [ref=e228]
+            - rowgroup [ref=e229]:
+              - row "Juan Pérez 555-1234 - Sin asignar" [ref=e257]:
+                - cell "Juan Pérez" [ref=e258]
+                - cell "555-1234" [ref=e259]
+                - cell "-" [ref=e260]
+                - cell "Sin asignar" [ref=e261]:
+                  - generic [ref=e263]: Sin asignar
+                - cell [ref=e264]:
+                  - generic [ref=e265]:
+                    - button [ref=e266] [cursor=pointer]:
+                      - img [ref=e268]
+                    - button [ref=e271] [cursor=pointer]:
+                      - img [ref=e273]
+  - dialog "Asignar Inquilino a Local" [ref=e284]:
+    - banner [ref=e285]:
+      - heading "Asignar Inquilino a Local" [level=2] [ref=e286]
+      - button [ref=e287] [cursor=pointer]:
+        - img [ref=e288]
+    - generic [ref=e292]:
+      - generic [ref=e293]:
+        - generic [ref=e294]: Inquilino
+        - generic [ref=e295]:
+          - combobox "Inquilino" [ref=e296] [cursor=pointer]: Juan Pérez (555-1234)
+          - generic:
+            - img
+      - generic [ref=e297]:
+        - generic [ref=e298]: Local
+        - generic [ref=e299]:
+          - combobox "Local" [active] [ref=e300] [cursor=pointer]: L001 - Local Central 1 (vacante)
+          - generic:
+            - img
+      - generic [ref=e301]:
+        - button "Cancelar" [ref=e302] [cursor=pointer]:
+          - generic [ref=e304]: Cancelar
+        - button "Asignar" [ref=e305] [cursor=pointer]:
+          - generic [ref=e307]: Asignar

@@ -1,0 +1,112 @@
+- generic [ref=e1]:
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e6]:
+        - button [ref=e7] [cursor=pointer]
+        - heading "Sistema de Gestión de Alquileres" [level=4] [ref=e9]
+        - generic [ref=e10]:
+          - img "Cambios sin guardar" [ref=e178]
+          - button "Abrir DB" [ref=e11] [cursor=pointer]:
+            - generic [ref=e12]:
+              - img [ref=e14]
+              - generic [ref=e19]: Abrir DB
+          - button "Guardar DB" [ref=e20] [cursor=pointer]:
+            - generic [ref=e21]:
+              - img [ref=e23]
+              - generic [ref=e28]: Guardar DB
+    - navigation [ref=e29]:
+      - paragraph [ref=e30]: Menú Principal
+      - button "Inicio" [ref=e31] [cursor=pointer]:
+        - generic [ref=e32]:
+          - img [ref=e34]
+          - generic [ref=e38]: Inicio
+      - button "Locales" [ref=e39] [cursor=pointer]:
+        - generic [ref=e40]:
+          - img [ref=e42]
+          - generic [ref=e44]: Locales
+      - button "Inquilinos" [ref=e45] [cursor=pointer]:
+        - generic [ref=e46]:
+          - img [ref=e48]
+          - generic [ref=e51]: Inquilinos
+      - button "Pagos" [ref=e52] [cursor=pointer]:
+        - generic [ref=e53]:
+          - img [ref=e55]
+          - generic [ref=e57]: Pagos
+      - button "Cargos" [ref=e58] [cursor=pointer]:
+        - generic [ref=e59]:
+          - img [ref=e61]
+          - generic [ref=e64]: Cargos
+      - button "Egresos" [ref=e65] [cursor=pointer]:
+        - generic [ref=e66]:
+          - img [ref=e68]
+          - generic [ref=e71]: Egresos
+      - button "Reportes" [ref=e72] [cursor=pointer]:
+        - generic [ref=e73]:
+          - img [ref=e75]
+          - generic [ref=e78]: Reportes
+    - main [ref=e79]:
+      - generic [ref=e393]:
+        - paragraph [ref=e395]: Registro de Pagos
+        - generic [ref=e396]:
+          - paragraph [ref=e397]: Registrar Nuevo Pago
+          - generic [ref=e398]:
+            - generic [ref=e399]:
+              - generic [ref=e400]: Local
+              - generic [ref=e401]:
+                - combobox "Local" [ref=e402] [cursor=pointer]: L001 - Local Central 1
+                - generic:
+                  - img
+            - generic [ref=e403]:
+              - generic [ref=e404]: Cargo Mensual
+              - generic [ref=e405]:
+                - combobox "Cargo Mensual" [expanded] [active] [ref=e406] [cursor=pointer]
+                - generic:
+                  - img
+            - generic [ref=e407]:
+              - generic [ref=e408]: Fecha de Pago
+              - textbox "Fecha de Pago" [ref=e410]:
+                - /placeholder: YYYY-MM-DD
+                - text: 2026-07-06
+            - generic [ref=e411]:
+              - generic [ref=e412]: Monto
+              - generic [ref=e413]:
+                - textbox "Monto" [ref=e414]:
+                  - /placeholder: Monto del pago
+                  - text: "0"
+                - generic [ref=e416]:
+                  - button [ref=e417] [cursor=pointer]:
+                    - img [ref=e418]
+                  - button [ref=e420] [cursor=pointer]:
+                    - img [ref=e421]
+            - generic [ref=e423]:
+              - generic [ref=e424]: Moneda
+              - generic [ref=e425]:
+                - combobox "Moneda" [ref=e426] [cursor=pointer]: USD
+                - generic:
+                  - img
+            - generic [ref=e427]:
+              - generic [ref=e428]: Cuenta
+              - generic [ref=e429]:
+                - combobox "Cuenta" [ref=e430] [cursor=pointer]: Jurídica
+                - generic:
+                  - img
+            - button "Registrar Pago" [ref=e432] [cursor=pointer]:
+              - generic [ref=e434]: Registrar Pago
+        - generic [ref=e435]:
+          - paragraph [ref=e436]: Historial de Pagos
+          - table [ref=e437]:
+            - rowgroup [ref=e438]:
+              - row "Local Fecha Monto Moneda Cuenta Estado" [ref=e439]:
+                - columnheader "Local" [ref=e440]
+                - columnheader "Fecha" [ref=e441]
+                - columnheader "Monto" [ref=e442]
+                - columnheader "Moneda" [ref=e443]
+                - columnheader "Cuenta" [ref=e444]
+                - columnheader "Estado" [ref=e445]
+            - rowgroup [ref=e446]:
+              - row "No hay pagos registrados aún" [ref=e447]:
+                - cell "No hay pagos registrados aún" [ref=e448]:
+                  - paragraph [ref=e449]: No hay pagos registrados aún
+  - listbox "Cargo Mensual" [ref=e458]:
+    - option "2026-7 - $500.00 (atrasado)" [ref=e464] [cursor=pointer]:
+      - generic [ref=e465]: 2026-7 - $500.00 (atrasado)

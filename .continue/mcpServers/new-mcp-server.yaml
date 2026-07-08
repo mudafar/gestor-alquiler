@@ -1,0 +1,14 @@
+name: New MCP server
+version: 0.0.1
+schema: v1
+mcpServers:
+  - name: "playwright"
+    command: "npx"
+    args:
+      - "-y"
+      - "@playwright/mcp@latest"
+      - "--browser=chrome"
+      # Add this section to bypass the confirmation prompts
+experimental:
+  toolPolicies:
+    default: automatic
