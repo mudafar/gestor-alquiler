@@ -31,7 +31,7 @@ interface EgresoFormData {
 export function EgresosModule() {
   const { egresos, createEgreso, updateEgreso, deleteEgreso } = useAppStore();
   const [modalOpened, setModalOpened] = useState(false);
-  const [editingEgreso, setEditingEgreso] = useState<EgresoFormData | null>(null);
+  const [editingEgreso, setEditingEgreso] = useState<Egreso | null>(null);
   const [deletingEgresoId, setDeletingEgresoId] = useState<number | null>(null);
   
   const form = useForm<EgresoFormData>({
@@ -76,8 +76,8 @@ export function EgresosModule() {
     setEditingEgreso(null);
   };
 
-  const handleEdit = (egreso: EgresoFormData) => {
-    form.setValues(egreso);
+  const handleEdit = (egreso: Egreso) => {
+    form.setValues({ fecha: egreso.fecha, monto: egreso.monto, moneda: egreso.moneda, descripcion: egreso.descripcion, categoria: egreso.categoria });
     setEditingEgreso(egreso);
     setModalOpened(true);
   };

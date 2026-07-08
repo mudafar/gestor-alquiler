@@ -3,9 +3,7 @@ import {
   Text,
   Table,
   Paper,
-  Group,
   SimpleGrid,
-  Badge,
 } from '@mantine/core';
 import { appService } from '../../services/appService';
 import { useAppStore } from '../../store/store';

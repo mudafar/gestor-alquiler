@@ -73,7 +73,7 @@ export function LocalesModule() {
 
   const handleSubmit = (values: LocalFormData) => {
     if (editingLocal) {
-      updateLocal({ ...values, activo: true });
+      updateLocal({ ...editingLocal, ...values, activo: true } as any);
       notifications.show({ title: 'Local actualizado', message: `El local ${values.nombre} ha sido actualizado.`, color: 'green' });
       form.reset();
       setModalOpened(false);

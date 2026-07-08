@@ -36,8 +36,6 @@ export function PagosModule() {
   }, []);
 
   const lastEdited = useRef<'usd' | 'bs' | null>(null);
-  const firstFieldRef = useRef<HTMLInputElement>(null);
-
   const form = useForm<PagoFormData>({
     initialValues: {
       contrato_id: '',
@@ -185,8 +183,8 @@ export function PagosModule() {
               value={form.values.monto_usd}
               onChange={(v) => {
                 const usd = v || 0;
-                form.setFieldValue('monto_usd', usd);
-                if (form.values.tasa_cambio > 0) form.setFieldValue('monto_bs', usd * form.values.tasa_cambio);
+                form.setFieldValue('monto_usd', Number(usd) || 0);
+                if (form.values.tasa_cambio > 0) form.setFieldValue('monto_bs', (Number(usd) || 0) * form.values.tasa_cambio);
                 lastEdited.current = 'usd';
               }}
             />
@@ -197,7 +195,7 @@ export function PagosModule() {
               decimalScale={2}
               {...form.getInputProps('monto_bs')}
               onChange={(v) => {
-                const bs = v || 0;
+                const bs = Number(v) || 0;
                 form.setFieldValue('monto_bs', bs);
                 if (form.values.tasa_cambio > 0) form.setFieldValue('monto_usd', bs / form.values.tasa_cambio);
                 lastEdited.current = 'bs';
@@ -210,7 +208,7 @@ export function PagosModule() {
               decimalScale={2}
               {...form.getInputProps('tasa_cambio')}
               onChange={(v) => {
-                const tasa = v || 0;
+                const tasa = Number(v) || 0;
                 form.setFieldValue('tasa_cambio', tasa);
                 if (tasa <= 0) return;
                 if (lastEdited.current === 'usd') {

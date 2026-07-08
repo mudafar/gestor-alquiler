@@ -1,6 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
 import {
-  TextInput,
   NumberInput,
   Select,
   Button,
@@ -19,7 +18,6 @@ import { MonthPickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { IconX, IconPlus, IconCheck } from '@tabler/icons-react';
 import { useAppStore } from '../../store/store';
-import { appService } from '../../services/appService';
 import { notifications } from '@mantine/notifications';
 import dayjs from 'dayjs';
 
@@ -88,7 +86,7 @@ export function ContratosModule() {
   const doCreate = (values: ContratoFormData, stayOpen: boolean) => {
     try {
       createContrato({
-        local_id: Number(values.local_id),
+        local_id: values.local_id as unknown as number,
         inquilino_id: parseInt(values.inquilino_id, 10),
         fecha_inicio: values.fecha_inicio,
         fecha_fin: values.fecha_fin,

@@ -8,10 +8,9 @@ import {
   Group,
   SimpleGrid,
   Alert,
-  Collapse,
   Button,
 } from '@mantine/core';
-import { IconInfoCircle, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { appService } from '../../services/appService';
 import { useAppStore } from '../../store/store';
 
@@ -127,44 +126,41 @@ export function ReporteFichaLocal() {
 
           {ficha.historicos.length > 0 && (
             <Paper shadow="sm" radius="md" withBorder>
-              <Button variant="subtle" fullWidth onClick={() => setShowHistoricos(!showHistoricos)}
-                rightSection={showHistoricos ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}>
-                Contratos hist&oacute;ricos ({ficha.historicos.length})
+              <Button variant="subtle" fullWidth onClick={() => setShowHistoricos(!showHistoricos)}>
+                Contratos hist&oacute;ricos ({ficha.historicos.length}) {showHistoricos ? '▲' : '▼'}
               </Button>
-              <Collapse in={showHistoricos}>
-                {ficha.historicos.map((h: any) => (
-                  <div key={h.contrato.id} style={{ borderTop: '1px solid var(--mantine-color-gray-3)', padding: 'var(--mantine-spacing-md)' }}>
-                    <Group mb="xs" gap="xl">
-                      <Badge color={h.contrato.estado === 'finalizado' ? 'blue' : 'red'}>{h.contrato.estado}</Badge>
-                      <div><Text size="xs" c="dimmed">Inquilino</Text><Text fw={600}>{h.inquilino?.nombre ?? '&mdash;'}</Text></div>
-                      <div><Text size="xs" c="dimmed">Inicio</Text><Text>{h.contrato.fecha_inicio}</Text></div>
-                      <div><Text size="xs" c="dimmed">Fin</Text><Text>{h.contrato.fecha_fin}</Text></div>
-                    </Group>
-                    <CargoTable cargos={h.cargos} />
-                    {h.pagos.length > 0 && (
-                      <>
-                        <Text fw={600} mt="md" mb="xs">Pagos</Text>
-                        <Table highlightOnHover>
-                          <Table.Thead><Table.Tr>
-                            <Table.Th>Fecha</Table.Th><Table.Th>BS</Table.Th><Table.Th>Tasa</Table.Th><Table.Th ta="right">USD</Table.Th><Table.Th>Cuenta</Table.Th>
-                          </Table.Tr></Table.Thead>
-                          <Table.Tbody>
-                            {h.pagos.map((p: any) => (
-                              <Table.Tr key={p.id}>
-                                <Table.Td>{p.fecha_pago}</Table.Td>
-                                <Table.Td>{p.monto_bs.toFixed(2)}</Table.Td>
-                                <Table.Td>{p.tasa_cambio.toFixed(2)}</Table.Td>
-                                <Table.Td ta="right" fw={600}>${p.monto_usd.toFixed(2)}</Table.Td>
-                                <Table.Td><Badge variant="light" color={p.cuenta === 'juridica' ? 'violet' : 'gray'}>{p.cuenta === 'juridica' ? 'Jur&iacute;dica' : 'Personal'}</Badge></Table.Td>
-                              </Table.Tr>
-                            ))}
-                          </Table.Tbody>
-                        </Table>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </Collapse>
+              {showHistoricos && ficha.historicos.map((h: any) => (
+                <div key={h.contrato.id} style={{ borderTop: '1px solid var(--mantine-color-gray-3)', padding: 'var(--mantine-spacing-md)' }}>
+                  <Group mb="xs" gap="xl">
+                    <Badge color={h.contrato.estado === 'finalizado' ? 'blue' : 'red'}>{h.contrato.estado}</Badge>
+                    <div><Text size="xs" c="dimmed">Inquilino</Text><Text fw={600}>{h.inquilino?.nombre ?? '&mdash;'}</Text></div>
+                    <div><Text size="xs" c="dimmed">Inicio</Text><Text>{h.contrato.fecha_inicio}</Text></div>
+                    <div><Text size="xs" c="dimmed">Fin</Text><Text>{h.contrato.fecha_fin}</Text></div>
+                  </Group>
+                  <CargoTable cargos={h.cargos} />
+                  {h.pagos.length > 0 && (
+                    <>
+                      <Text fw={600} mt="md" mb="xs">Pagos</Text>
+                      <Table highlightOnHover>
+                        <Table.Thead><Table.Tr>
+                          <Table.Th>Fecha</Table.Th><Table.Th>BS</Table.Th><Table.Th>Tasa</Table.Th><Table.Th ta="right">USD</Table.Th><Table.Th>Cuenta</Table.Th>
+                        </Table.Tr></Table.Thead>
+                        <Table.Tbody>
+                          {h.pagos.map((p: any) => (
+                            <Table.Tr key={p.id}>
+                              <Table.Td>{p.fecha_pago}</Table.Td>
+                              <Table.Td>{p.monto_bs.toFixed(2)}</Table.Td>
+                              <Table.Td>{p.tasa_cambio.toFixed(2)}</Table.Td>
+                              <Table.Td ta="right" fw={600}>${p.monto_usd.toFixed(2)}</Table.Td>
+                              <Table.Td><Badge variant="light" color={p.cuenta === 'juridica' ? 'violet' : 'gray'}>{p.cuenta === 'juridica' ? 'Jur&iacute;dica' : 'Personal'}</Badge></Table.Td>
+                            </Table.Tr>
+                          ))}
+                        </Table.Tbody>
+                      </Table>
+                    </>
+                  )}
+                </div>
+              ))}
             </Paper>
           )}
         </>

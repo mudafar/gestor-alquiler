@@ -41,7 +41,7 @@ interface AppActions {
 
   // Contratos
   createContrato: (data: {
-    local_id: string;
+    local_id: number;
     inquilino_id: number;
     fecha_inicio: string;
     fecha_fin: string;
